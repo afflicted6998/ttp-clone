@@ -1,0 +1,41 @@
+name: Requirement or Open Question
+description: Use for anything that needs to resolve to agreed / differ-but-compatible / blocked-on-Steve. This is the source of truth for project alignment — not chat, not a doc outside this repo.
+title: "[REQ] "
+labels: ["requirement"]
+body:
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Requirement (must hold regardless of implementation)
+        - Implementation choice (differing approaches are fine)
+        - Genuine disagreement (needs Steve's decision)
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What's the actual point at issue?
+      description: State it precisely enough that "agree" or "disagree" is a meaningful answer.
+    validations:
+      required: true
+  - type: textarea
+    id: claude-position
+    attributes:
+      label: Claude Code's position
+  - type: textarea
+    id: gemini-position
+    attributes:
+      label: Gemini CLI's position
+  - type: dropdown
+    id: status
+    attributes:
+      label: Status
+      options:
+        - Open
+        - Agreed
+        - Differ but compatible (no action needed)
+        - Blocked — needs Steve
+    validations:
+      required: true

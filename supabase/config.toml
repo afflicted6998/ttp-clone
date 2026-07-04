@@ -385,6 +385,11 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Traccar Client cannot send a Supabase JWT; this function authenticates via a
+# shared token in the URL instead (see supabase/functions/traccar-receiver/README.md).
+[functions.traccar-receiver]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

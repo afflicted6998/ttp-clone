@@ -39,7 +39,11 @@ inserts a `location_logs` row. Pings with no active visit land in
 - Traccar Client's own status screen shows successful sends (no red errors).
 - With a visit checked in (status `active`), rows appear in `location_logs`.
 - With **no** active visit, rows appear in `orphan_pings` — that is expected
-  behavior, not a bug (it means the walk wasn't checked in).
+  behavior, not a bug (it means the walk wasn't checked in). Exception:
+  a late ping whose GPS timestamp falls inside a *completed* visit's
+  check-in/check-out window (Traccar's offline backfill arriving after
+  checkout) still lands in `location_logs` for that visit, and the visit's
+  distance recomputes automatically.
 
 ## Response codes (what Traccar Client does with them)
 

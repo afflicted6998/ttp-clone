@@ -14,9 +14,14 @@
 CREATE OR REPLACE FUNCTION public.visit_derived_fields() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
+    -- ELSE branches clear the fields when checkout is undone (check_out_time
+    -- back to NULL) — otherwise a re-activated visit would keep showing its
+    -- old completed numbers (Gemini PR #9 review, finding 3).
     IF NEW.check_out_time IS NOT NULL AND NEW.check_in_time IS NOT NULL THEN
         NEW.duration_minutes := ROUND(
             EXTRACT(EPOCH FROM (NEW.check_out_time - NEW.check_in_time)) / 60.0, 2);
+    ELSE
+        NEW.duration_minutes := NULL;
     END IF;
     IF NEW.check_out_time IS NOT NULL THEN
         SELECT ROUND(COALESCE(
@@ -25,14 +30,19 @@ BEGIN
           INTO NEW.distance_meters
           FROM public.location_logs l
          WHERE l.visit_id = NEW.id;
+    ELSE
+        NEW.distance_meters := NULL;
     END IF;
     RETURN NEW;
 END $$;
 
+-- Fires on check_in_time changes too: correcting a completed visit's
+-- check-in must recompute duration (Gemini PR #9 review, finding 2).
 CREATE TRIGGER trg_visit_derived_fields
     BEFORE UPDATE ON public.visits
     FOR EACH ROW
-    WHEN (NEW.check_out_time IS DISTINCT FROM OLD.check_out_time)
+    WHEN (NEW.check_out_time IS DISTINCT FROM OLD.check_out_time
+          OR NEW.check_in_time IS DISTINCT FROM OLD.check_in_time)
     EXECUTE FUNCTION public.visit_derived_fields();
 
 -- Late-arriving points (offline backfill) on an already-completed visit:

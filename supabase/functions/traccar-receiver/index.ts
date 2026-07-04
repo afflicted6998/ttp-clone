@@ -78,9 +78,34 @@ Deno.serve(async (req: Request) => {
     return new Response("visit lookup failed", { status: 500 });
   }
 
-  if (!visit) {
-    // No active visit (before check-in / after check-out). Keep the ping —
-    // discarding data contradicts the project's whole thesis (issue #2) —
+  // No active visit: before orphaning, check whether this is offline-buffered
+  // backfill for a visit that already ended — Traccar can deliver dead-zone
+  // points AFTER checkout, and they must land in location_logs so the
+  // distance recompute trigger sees them (Gemini PR #9 review, finding 1).
+  // Matched by the fix's own recorded_at falling inside a completed visit's
+  // check-in/check-out window.
+  let targetVisitId = visit?.id ?? null;
+  if (!targetVisitId) {
+    const { data: past, error: pastErr } = await supabase
+      .from("visits")
+      .select("id")
+      .eq("status", "completed")
+      .lte("check_in_time", ping.recordedAt)
+      .gte("check_out_time", ping.recordedAt)
+      .order("check_out_time", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (pastErr) {
+      console.error("late-ping visit lookup failed:", pastErr);
+      return new Response("visit lookup failed", { status: 500 });
+    }
+    targetVisitId = past?.id ?? null;
+  }
+
+  if (!targetVisitId) {
+    // Genuinely no home for this ping (before check-in / after check-out,
+    // outside any visit's window). Keep it — discarding data contradicts the
+    // project's whole thesis (issue #2) —
     // but return 200 so Traccar does not retry it forever.
     params.delete("token");
     const { error } = await supabase.from("orphan_pings").insert({
@@ -98,7 +123,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const { error: insertErr } = await supabase.from("location_logs").insert({
-    visit_id: visit.id,
+    visit_id: targetVisitId,
     coordinate: ping.coordinateWkt,
     latitude: ping.latitude,
     longitude: ping.longitude,

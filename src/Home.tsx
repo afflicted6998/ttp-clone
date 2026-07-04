@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { CheckIn } from "./CheckIn";
 import { ActiveVisit } from "./ActiveVisit";
+import { PastVisits } from "./PastVisits";
+import { VisitDetail } from "./VisitDetail";
 
 export interface Visit {
   id: string;
@@ -14,6 +16,7 @@ export function Home({ walkerId }: { walkerId: string }) {
   const [visit, setVisit] = useState<Visit | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [openVisitId, setOpenVisitId] = useState<string | null>(null);
 
   const loadActiveVisit = useCallback(async () => {
     setLoading(true);
@@ -38,9 +41,18 @@ export function Home({ walkerId }: { walkerId: string }) {
   if (loading) return <p className="muted">Loading…</p>;
   if (error) return <p className="error">{error}</p>;
 
-  return visit ? (
-    <ActiveVisit visit={visit} onCheckedOut={loadActiveVisit} />
-  ) : (
-    <CheckIn walkerId={walkerId} onCheckedIn={loadActiveVisit} />
+  if (openVisitId) {
+    return <VisitDetail visitId={openVisitId} onBack={() => setOpenVisitId(null)} />;
+  }
+
+  return (
+    <>
+      {visit ? (
+        <ActiveVisit visit={visit} onCheckedOut={loadActiveVisit} />
+      ) : (
+        <CheckIn walkerId={walkerId} onCheckedIn={loadActiveVisit} />
+      )}
+      <PastVisits onOpen={setOpenVisitId} />
+    </>
   );
 }

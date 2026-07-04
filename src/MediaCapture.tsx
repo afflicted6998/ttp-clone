@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "./supabase";
 import { bucketFor, mediaTypeFor, storagePathFor, type MediaType } from "./mediaPath";
+import { fetchMediaWithUrls, type MediaItem } from "./mediaList";
 
 interface Upload {
   key: number;
@@ -16,40 +17,16 @@ interface Upload {
   mediaId: string;
 }
 
-interface MediaRow {
-  id: string;
-  type: "photo" | "video";
-  storage_path: string;
-  captured_at: string;
-  signedUrl?: string;
-}
-
 // QA_TEST_PLAN "media without connectivity": a silent loss is a Major.
 // Every capture therefore gets a visible row — uploading / saved / FAILED
 // with a retry button — and failed files stay in memory for retry.
 export function MediaCapture({ visitId }: { visitId: string }) {
   const [uploads, setUploads] = useState<Upload[]>([]);
-  const [saved, setSaved] = useState<MediaRow[]>([]);
+  const [saved, setSaved] = useState<MediaItem[]>([]);
   const nextKey = useRef(1);
 
   const loadSaved = useCallback(async () => {
-    const { data } = await supabase
-      .from("media")
-      .select("id, type, storage_path, captured_at")
-      .eq("visit_id", visitId)
-      .order("captured_at");
-    const rows: MediaRow[] = data ?? [];
-    // Signed URLs, 1 hour — buckets are private by design. Fetched
-    // concurrently; sequential awaits would stack N round-trips.
-    await Promise.all(
-      rows.map(async (row) => {
-        const { data: signed } = await supabase.storage
-          .from(bucketFor(row.type))
-          .createSignedUrl(row.storage_path, 3600);
-        row.signedUrl = signed?.signedUrl;
-      }),
-    );
-    setSaved(rows);
+    setSaved(await fetchMediaWithUrls(visitId));
   }, [visitId]);
 
   useEffect(() => {

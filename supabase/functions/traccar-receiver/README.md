@@ -48,4 +48,4 @@ inserts a `location_logs` row. Pings with no active visit land in
 | 200 | stored (visit or orphan) | drops the fix from its buffer |
 | 400 | malformed ping | drops it (re-sending would never succeed) |
 | 403 | bad/missing token or unknown device | keeps retrying — fix the URL/secret |
-| 500 | database error | keeps the fix buffered and retries — nothing is lost |
+| 500 | database error, or `TRACCAR_DEVICE_ID` secret not set | keeps the fix buffered and retries — nothing is lost |

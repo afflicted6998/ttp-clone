@@ -57,6 +57,28 @@ check("non-numeric lat rejected", () => {
   assert(!parsePing(new URLSearchParams("id=x&timestamp=1751652000&lat=abc&lon=2")).ok);
 });
 
+// Number("") === 0, so an empty param must be rejected, not become
+// coordinate (0,0) / epoch 1970 (Gemini review of PR #3, finding 1).
+check("EMPTY lat/lon rejected, not parsed as (0,0)", () => {
+  assert(!parsePing(new URLSearchParams("id=x&timestamp=1751652000&lat=&lon=")).ok);
+});
+
+check("whitespace lat rejected", () => {
+  assert(!parsePing(new URLSearchParams("id=x&timestamp=1751652000&lat=%20&lon=2")).ok);
+});
+
+check("EMPTY timestamp rejected, not parsed as 1970", () => {
+  assert(!parsePing(new URLSearchParams("id=x&timestamp=&lat=1&lon=2")).ok);
+});
+
+check("EMPTY speed/batt become null, not 0", () => {
+  const r = parsePing(new URLSearchParams("id=x&timestamp=1751652000&lat=1&lon=2&speed=&batt="));
+  assert(r.ok);
+  if (!r.ok) return;
+  assert.equal(r.ping.speedMs, null);
+  assert.equal(r.ping.batteryLevel, null);
+});
+
 check("out-of-range lat rejected", () => {
   assert(!parsePing(new URLSearchParams("id=x&timestamp=1751652000&lat=91&lon=2")).ok);
 });

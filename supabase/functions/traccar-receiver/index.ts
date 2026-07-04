@@ -48,23 +48,33 @@ Deno.serve(async (req: Request) => {
   }
   const ping = result.ping;
 
-  const expectedDevice = Deno.env.get("TRACCAR_DEVICE_ID");
-  if (expectedDevice && ping.deviceId !== expectedDevice) {
+  // Required, not optional: a missing secret must fail loudly (500, so
+  // Traccar buffers and retries), not silently accept every device
+  // (Gemini review of PR #3, finding 2).
+  const expectedDevice = Deno.env.get("TRACCAR_DEVICE_ID")?.trim();
+  if (!expectedDevice) {
+    console.error("TRACCAR_DEVICE_ID secret is not set");
+    return new Response("server misconfigured: TRACCAR_DEVICE_ID not set", { status: 500 });
+  }
+  if (ping.deviceId !== expectedDevice) {
     return new Response("unknown device", { status: 403 });
   }
 
   // Single-operator Phase 1: the active visit, newest check-in first if there
-  // is somehow more than one.
+  // is somehow more than one. nullsFirst: false so a malformed active visit
+  // with NULL check_in_time can never outrank a real one (Postgres puts
+  // NULLs first on DESC by default).
   const { data: visit, error: visitErr } = await supabase
     .from("visits")
     .select("id")
     .eq("status", "active")
-    .order("check_in_time", { ascending: false })
+    .order("check_in_time", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
 
   if (visitErr) {
     // 5xx so Traccar Client keeps the fix buffered and retries.
+    console.error("visit lookup failed:", visitErr);
     return new Response("visit lookup failed", { status: 500 });
   }
 
@@ -80,7 +90,10 @@ Deno.serve(async (req: Request) => {
       recorded_at: ping.recordedAt,
       raw_params: params.toString(),
     });
-    if (error) return new Response("orphan insert failed", { status: 500 });
+    if (error) {
+      console.error("orphan insert failed:", error);
+      return new Response("orphan insert failed", { status: 500 });
+    }
     return new Response("ok (no active visit; stored as orphan)", { status: 200 });
   }
 
@@ -96,6 +109,7 @@ Deno.serve(async (req: Request) => {
     // recorded_at — that difference is what the QA dead-zone scenario checks.
   });
   if (insertErr) {
+    console.error("location insert failed:", insertErr);
     return new Response("insert failed", { status: 500 });
   }
 

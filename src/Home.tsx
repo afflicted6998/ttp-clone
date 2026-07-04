@@ -52,7 +52,10 @@ export function Home({ walkerId }: { walkerId: string }) {
       ) : (
         <CheckIn walkerId={walkerId} onCheckedIn={loadActiveVisit} />
       )}
-      <PastVisits onOpen={setOpenVisitId} />
+      {/* key remounts the list when the active visit changes, so a walk you
+          just checked out of appears without a manual reload (Gemini PR #10
+          review, finding 2). */}
+      <PastVisits key={visit?.id ?? "none"} onOpen={setOpenVisitId} />
     </>
   );
 }

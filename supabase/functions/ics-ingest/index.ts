@@ -35,7 +35,15 @@ Deno.serve(async (_req: Request) => {
     return new Response("ICS_FEED_URL secret is not set", { status: 500 });
   }
 
-  const feedRes = await fetch(feedUrl);
+  // fetch() rejects (rather than returning !ok) on DNS/connection failures —
+  // catch those too, or a Google outage becomes an unhandled crash.
+  let feedRes: Response;
+  try {
+    feedRes = await fetch(feedUrl);
+  } catch (e) {
+    console.error("feed fetch connection failed:", e);
+    return new Response("feed fetch failed: connection error or invalid URL", { status: 502 });
+  }
   if (!feedRes.ok) {
     return new Response(`feed fetch failed: HTTP ${feedRes.status}`, { status: 502 });
   }

@@ -1,0 +1,13 @@
+{
+  "name": "ttp-clone",
+  "private": true,
+  "type": "module",
+  "description": "Dev dependencies for testing Supabase edge function logic locally with Node. The functions themselves run on Deno; supabase/functions/*/deno.json maps the same package names for deploy.",
+  "scripts": {
+    "test": "tsx supabase/functions/traccar-receiver/ping.test.ts && tsx supabase/functions/ics-ingest/parse.test.ts"
+  },
+  "devDependencies": {
+    "ical.js": "^2.1.0",
+    "tsx": "^4.19.0"
+  }
+}

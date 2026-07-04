@@ -50,6 +50,31 @@ const FEED = [
   "DTEND;TZID=America/New_York:20260720T143000",
   "SUMMARY:Slushy — weekly walk (moved to 2pm)",
   "END:VEVENT",
+  // Cancelled one-off (Google STATUS:CANCELLED) — must not appear
+  "BEGIN:VEVENT",
+  "UID:cancelled999@google.com",
+  "DTSTART;TZID=America/New_York:20260709T100000",
+  "DTEND;TZID=America/New_York:20260709T110000",
+  "STATUS:CANCELLED",
+  "SUMMARY:Cancelled walk",
+  "END:VEVENT",
+  // Weekly with one instance cancelled via STATUS:CANCELLED exception
+  // (Google's other cancellation pattern besides EXDATE)
+  "BEGIN:VEVENT",
+  "UID:weekly888@google.com",
+  "DTSTART;TZID=America/New_York:20260707T090000",
+  "DTEND;TZID=America/New_York:20260707T093000",
+  "RRULE:FREQ=WEEKLY;COUNT=2",
+  "SUMMARY:Biscuit — Tuesday walk",
+  "END:VEVENT",
+  "BEGIN:VEVENT",
+  "UID:weekly888@google.com",
+  "RECURRENCE-ID;TZID=America/New_York:20260714T090000",
+  "DTSTART;TZID=America/New_York:20260714T090000",
+  "DTEND;TZID=America/New_York:20260714T093000",
+  "STATUS:CANCELLED",
+  "SUMMARY:Biscuit — Tuesday walk",
+  "END:VEVENT",
   // Far outside the window — must not appear
   "BEGIN:VEVENT",
   "UID:faraway789@google.com",
@@ -73,9 +98,20 @@ function check(name: string, fn: () => void) {
   console.log(`ok ${n} - ${name}`);
 }
 
-check("one-off + 3 surviving recurring instances, out-of-window excluded", () => {
-  assert.equal(rows.length, 4, JSON.stringify(rows.map((r) => r.ics_uid), null, 2));
+check("surviving events only: out-of-window and cancelled excluded", () => {
+  // oneoff123 + 3 weekly456 instances + 1 weekly888 instance
+  assert.equal(rows.length, 5, JSON.stringify(rows.map((r) => r.ics_uid), null, 2));
   assert(!rows.some((r) => r.ics_uid.startsWith("faraway789")));
+});
+
+check("STATUS:CANCELLED one-off is not emitted", () => {
+  assert(!rows.some((r) => r.ics_uid.startsWith("cancelled999")));
+});
+
+check("STATUS:CANCELLED recurring instance skipped, sibling survives", () => {
+  const biscuit = rows.filter((r) => r.ics_uid.startsWith("weekly888"));
+  assert.equal(biscuit.length, 1);
+  assert.equal(biscuit[0].starts_at, "2026-07-07T13:00:00.000Z"); // 9am EDT Jul 7
 });
 
 check("one-off event fields land intact (EDT 2pm = 18:00 UTC)", () => {

@@ -61,6 +61,7 @@ export function parseCalendar(
 
   for (const event of masters) {
     if (!event.startDate) continue; // defensive: skip malformed VEVENTs
+    if (isCancelled(event)) continue; // Google can mark events STATUS:CANCELLED
 
     if (!event.isRecurring()) {
       const start = event.startDate.toJSDate();
@@ -80,6 +81,9 @@ export function parseCalendar(
       if (end < windowStart) continue;
       // occ.item is the exception event when this instance was edited,
       // otherwise the master — titles/notes of edited instances win.
+      // Google cancels single instances either via EXDATE (never reaches
+      // here) or via a STATUS:CANCELLED exception (skipped here).
+      if (isCancelled(occ.item)) continue;
       rows.push(
         toRow(`${event.uid}:${occ.recurrenceId.toString()}`, occ.item, start, end),
       );
@@ -87,6 +91,11 @@ export function parseCalendar(
   }
 
   return rows;
+}
+
+function isCancelled(event: any): boolean {
+  return String(event.component.getFirstPropertyValue("status") ?? "")
+    .toUpperCase() === "CANCELLED";
 }
 
 function toRow(icsUid: string, event: any, start: Date, end: Date): CalendarRow {

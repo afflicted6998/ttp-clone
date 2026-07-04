@@ -56,18 +56,48 @@ Deno.serve(async (_req: Request) => {
   }
 
   const syncedAt = new Date(now).toISOString();
+  // cancelled_at: null revives an event that was flagged cancelled but has
+  // reappeared in the feed (e.g. un-cancelled in Google).
   const { error } = await supabase
     .from("calendar_events")
     .upsert(
-      rows.map((r) => ({ ...r, synced_at: syncedAt })),
+      rows.map((r) => ({ ...r, synced_at: syncedAt, cancelled_at: null })),
       { onConflict: "ics_uid" },
     );
   if (error) {
     return new Response(`upsert failed: ${error.message}`, { status: 500 });
   }
 
+  // Soft-cancel sweep: events inside the window that this sync did NOT see
+  // (their synced_at is still older) have vanished from the Google feed —
+  // cancelled or deleted. Flag them instead of deleting; a visit may already
+  // reference them, and check-in filters on cancelled_at IS NULL.
+  // Guard: skip the sweep on an empty parse — indistinguishable from a
+  // broken/truncated feed, and a later good sync would revive everything
+  // anyway; better to never mass-cancel on bad input.
+  let cancelled = 0;
+  if (rows.length > 0) {
+    const { data: swept, error: sweepErr } = await supabase
+      .from("calendar_events")
+      .update({ cancelled_at: syncedAt })
+      .is("cancelled_at", null)
+      .lt("synced_at", syncedAt)
+      .gte("starts_at", new Date(now - WINDOW_BACK_MS).toISOString())
+      .lte("starts_at", new Date(now + WINDOW_FORWARD_MS).toISOString())
+      .select("id");
+    if (sweepErr) {
+      return new Response(`cancel sweep failed: ${sweepErr.message}`, { status: 500 });
+    }
+    cancelled = swept?.length ?? 0;
+  }
+
   return new Response(
-    JSON.stringify({ ok: true, events_in_window: rows.length, synced_at: syncedAt }),
+    JSON.stringify({
+      ok: true,
+      events_in_window: rows.length,
+      newly_cancelled: cancelled,
+      synced_at: syncedAt,
+    }),
     { headers: { "content-type": "application/json" } },
   );
 });

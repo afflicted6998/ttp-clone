@@ -43,6 +43,12 @@ You should get `{"ok":true,"events_in_window":N,...}` and see rows in
 - **Recurring events** are expanded into individual rows; each instance's
   `ics_uid` is `<UID>:<original scheduled time>`, so a rescheduled instance
   updates its existing row instead of duplicating.
-- **Upsert-only:** an event cancelled in Google after it was ingested stays
-  in the table (it may already be linked to a visit). Known Phase 1
-  limitation — the check-in screen shows it until it ages out of "today".
+- **Cancellations are soft:** an event cancelled in Google after ingestion
+  keeps its row (a visit may already be linked to it) but gets
+  `cancelled_at` set — either because Google marks it `STATUS:CANCELLED`
+  in the feed, or because it simply vanished from the feed (the sync flags
+  window events it no longer sees). Check-in only offers events where
+  `cancelled_at IS NULL`. If you un-cancel an event in Google, the flag
+  clears on the next sync. Safety guard: a sync that parses zero events
+  (broken/truncated feed) skips the cancellation sweep entirely, so a bad
+  fetch can never mass-cancel your calendar.

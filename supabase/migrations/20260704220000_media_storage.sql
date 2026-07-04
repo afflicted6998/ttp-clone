@@ -32,3 +32,25 @@ CREATE POLICY "walkers read media for own visits" ON storage.objects
               AND v.walker_id = auth.uid()
         )
     );
+
+-- UPDATE too: retry-after-partial-failure re-uploads to the SAME path with
+-- upsert, which is an UPDATE on the existing object — without this policy
+-- the retry dies with 42501 permission denied (Gemini PR #8 review, finding 1).
+CREATE POLICY "walkers update media for own visits" ON storage.objects
+    FOR UPDATE TO authenticated
+    USING (
+        bucket_id IN ('visit-photos', 'visit-video')
+        AND EXISTS (
+            SELECT 1 FROM public.visits v
+            WHERE v.id::text = (storage.foldername(name))[1]
+              AND v.walker_id = auth.uid()
+        )
+    )
+    WITH CHECK (
+        bucket_id IN ('visit-photos', 'visit-video')
+        AND EXISTS (
+            SELECT 1 FROM public.visits v
+            WHERE v.id::text = (storage.foldername(name))[1]
+              AND v.walker_id = auth.uid()
+        )
+    );

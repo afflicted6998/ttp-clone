@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "./supabase";
-import { bucketFor, mediaTypeFor, storagePathFor } from "./mediaPath";
+import { bucketFor, mediaTypeFor, storagePathFor, type MediaType } from "./mediaPath";
 
 interface Upload {
   key: number;
@@ -8,6 +8,12 @@ interface Upload {
   label: string;
   status: "uploading" | "done" | "failed";
   error?: string;
+  // Fixed at capture time so retries are idempotent: same storage path
+  // (re-upload overwrites, never orphans) and same media row id (DB upsert,
+  // never duplicates) — Gemini PR #8 review, finding 2.
+  type: MediaType;
+  path: string;
+  mediaId: string;
 }
 
 interface MediaRow {
@@ -33,13 +39,16 @@ export function MediaCapture({ visitId }: { visitId: string }) {
       .eq("visit_id", visitId)
       .order("captured_at");
     const rows: MediaRow[] = data ?? [];
-    // Signed URLs, 1 hour — buckets are private by design.
-    for (const row of rows) {
-      const { data: signed } = await supabase.storage
-        .from(bucketFor(row.type))
-        .createSignedUrl(row.storage_path, 3600);
-      row.signedUrl = signed?.signedUrl;
-    }
+    // Signed URLs, 1 hour — buckets are private by design. Fetched
+    // concurrently; sequential awaits would stack N round-trips.
+    await Promise.all(
+      rows.map(async (row) => {
+        const { data: signed } = await supabase.storage
+          .from(bucketFor(row.type))
+          .createSignedUrl(row.storage_path, 3600);
+        row.signedUrl = signed?.signedUrl;
+      }),
+    );
     setSaved(rows);
   }, [visitId]);
 
@@ -51,32 +60,30 @@ export function MediaCapture({ visitId }: { visitId: string }) {
     setUploads((u) => u.map((x) => (x.key === key ? { ...x, ...patch } : x)));
   }
 
-  async function upload(key: number, file: File) {
-    const type = mediaTypeFor(file.type);
-    if (!type) {
-      setStatus(key, { status: "failed", error: `unsupported file type: ${file.type}` });
-      return;
-    }
-    setStatus(key, { status: "uploading", error: undefined });
-    const path = storagePathFor(visitId, file.type, Date.now());
-    // upsert:true makes retries safe if storage succeeded but the row insert failed
+  async function upload(u: Upload) {
+    setStatus(u.key, { status: "uploading", error: undefined });
+    // upsert:true + the fixed path make storage retries overwrite in place
+    // (requires the UPDATE storage policy added in the migration).
     const { error: upErr } = await supabase.storage
-      .from(bucketFor(type))
-      .upload(path, file, { upsert: true, contentType: file.type });
+      .from(bucketFor(u.type))
+      .upload(u.path, u.file, { upsert: true, contentType: u.file.type });
     if (upErr) {
-      setStatus(key, { status: "failed", error: upErr.message });
+      setStatus(u.key, { status: "failed", error: upErr.message });
       return;
     }
-    const { error: rowErr } = await supabase.from("media").insert({
+    // Upsert on the client-fixed id: a retry after a lost success response
+    // updates the same row instead of inserting a duplicate.
+    const { error: rowErr } = await supabase.from("media").upsert({
+      id: u.mediaId,
       visit_id: visitId,
-      type,
-      storage_path: path, // path within the bucket; bucket follows from type
+      type: u.type,
+      storage_path: u.path, // path within the bucket; bucket follows from type
     });
     if (rowErr) {
-      setStatus(key, { status: "failed", error: `file stored, row failed: ${rowErr.message}` });
+      setStatus(u.key, { status: "failed", error: `file stored, row failed: ${rowErr.message}` });
       return;
     }
-    setStatus(key, { status: "done" });
+    setStatus(u.key, { status: "done" });
     loadSaved();
   }
 
@@ -85,11 +92,27 @@ export function MediaCapture({ visitId }: { visitId: string }) {
     e.target.value = ""; // allow re-capturing immediately
     if (!file) return;
     const key = nextKey.current++;
-    setUploads((u) => [
-      ...u,
-      { key, file, label: `${file.type || "file"} · ${Math.round(file.size / 1024)} KB`, status: "uploading" },
-    ]);
-    upload(key, file);
+    const type = mediaTypeFor(file.type);
+    const label = `${file.type || "file"} · ${Math.round(file.size / 1024)} KB`;
+    if (!type) {
+      setUploads((u) => [
+        ...u,
+        { key, file, label, status: "failed", error: `unsupported file type: ${file.type}`,
+          type: "photo", path: "", mediaId: "" },
+      ]);
+      return;
+    }
+    const entry: Upload = {
+      key,
+      file,
+      label,
+      status: "uploading",
+      type,
+      path: storagePathFor(visitId, file.type, Date.now()),
+      mediaId: crypto.randomUUID(),
+    };
+    setUploads((u) => [...u, entry]);
+    upload(entry);
   }
 
   return (
@@ -111,9 +134,11 @@ export function MediaCapture({ visitId }: { visitId: string }) {
           {u.status === "failed" && (
             <>
               {" "}({u.error}){" "}
-              <a href="#" onClick={(e) => { e.preventDefault(); upload(u.key, u.file); }}>
-                retry
-              </a>
+              {u.path && (
+                <a href="#" onClick={(e) => { e.preventDefault(); upload(u); }}>
+                  retry
+                </a>
+              )}
             </>
           )}
         </p>

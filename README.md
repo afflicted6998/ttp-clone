@@ -8,3 +8,18 @@ Phase 1 of a self-owned data layer for Outside Feet, motivated by Time to Pet's 
 - **Agent instructions:** [`CLAUDE.md`](CLAUDE.md) / [`GEMINI.md`](GEMINI.md)
 
 `main` is protected. All changes go through a PR. Open questions and requirement disagreements live as GitHub Issues, not chat — see the issue template.
+
+## Running the PWA
+
+```
+npm install
+cp .env.example .env    # fill in the two Supabase values (Dashboard -> Settings -> API)
+npm run dev             # local dev server
+npm test                # edge-function logic tests
+npm run build           # production build (what Vercel runs)
+```
+
+Deploy: Vercel auto-builds `main` (see SETUP_GUIDE.md 1.4). Set
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the Vercel project
+settings, and add the Vercel URL to Supabase Auth -> URL Configuration ->
+Redirect URLs (plus Site URL) so magic links come back to the deployed app.

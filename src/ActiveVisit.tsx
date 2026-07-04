@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import { MediaCapture } from "./MediaCapture";
 import type { Visit } from "./Home";
 
 export function ActiveVisit({
@@ -71,6 +72,8 @@ export function ActiveVisit({
           on? correct server URL?).
         </p>
       )}
+
+      <MediaCapture visitId={visit.id} />
 
       <label>
         Terrain note

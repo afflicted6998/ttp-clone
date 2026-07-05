@@ -30,6 +30,49 @@ function finiteOrNull(raw: string | null): number | null {
 }
 
 /**
+ * Flatten a JSON location payload (TransistorSoft-SDK shape, as observed from
+ * the field 2026-07-05: { location: { timestamp, coords: { latitude,
+ * longitude, speed }, battery: { level } }, device_id }) into the OsmAnd-style
+ * params parsePing expects. Existing params win — the URL query stays
+ * authoritative. Returns how many location fixes the payload carried (JSON
+ * clients can batch; only the first is flattened, the caller decides what to
+ * do about the rest).
+ */
+export function jsonBodyToParams(body: unknown, params: URLSearchParams): number {
+  if (typeof body !== "object" || body === null) return 0;
+  const obj = body as Record<string, any>;
+  const locations = Array.isArray(obj.location)
+    ? obj.location
+    : obj.location !== undefined
+      ? [obj.location]
+      : [obj];
+  const loc = locations[0] ?? {};
+  const coords = loc?.coords ?? loc;
+
+  const set = (key: string, value: unknown) => {
+    if (value === undefined || value === null) return;
+    if (params.get(key) === null) params.set(key, String(value));
+  };
+
+  set("id", obj.device_id ?? obj.deviceid ?? obj.id);
+  set("lat", coords?.latitude ?? coords?.lat);
+  set("lon", coords?.longitude ?? coords?.lon ?? coords?.lng);
+  set("timestamp", loc?.timestamp ?? obj.timestamp);
+  // TransistorSoft coords.speed is already m/s (not knots) — keep it distinct.
+  if (typeof coords?.speed === "number" && coords.speed >= 0) {
+    set("speed_ms", coords.speed);
+  }
+  // TransistorSoft battery.level is a 0–1 fraction; OsmAnd batt is percent.
+  const batteryLevel = loc?.battery?.level;
+  if (typeof batteryLevel === "number") {
+    set("batt", batteryLevel <= 1 ? batteryLevel * 100 : batteryLevel);
+  } else {
+    set("batt", obj.batt);
+  }
+  return locations.length;
+}
+
+/**
  * Parse the OsmAnd-protocol parameters Traccar Client sends.
  * Required: id, lat, lon, timestamp. Optional: speed (knots), batt (percent).
  * `timestamp` is unix epoch; Traccar sends seconds, but accept milliseconds
@@ -51,11 +94,17 @@ export function parsePing(params: URLSearchParams): PingResult {
     return { ok: false, error: "lat/lon out of range" };
   }
 
-  const tsNum = finiteOrNull(params.get("timestamp"));
-  if (tsNum === null) {
-    return { ok: false, error: "missing, empty, or non-numeric timestamp" };
+  // Epoch seconds/ms (OsmAnd) or an ISO-8601 string (JSON payloads).
+  const rawTs = params.get("timestamp");
+  const tsNum = finiteOrNull(rawTs);
+  let epochMs: number;
+  if (tsNum !== null) {
+    epochMs = tsNum > 9_999_999_999 ? tsNum : tsNum * 1000;
+  } else if (rawTs && !Number.isNaN(Date.parse(rawTs))) {
+    epochMs = Date.parse(rawTs);
+  } else {
+    return { ok: false, error: "missing or unparseable timestamp" };
   }
-  const epochMs = tsNum > 9_999_999_999 ? tsNum : tsNum * 1000;
   const recorded = new Date(epochMs);
   if (Number.isNaN(recorded.getTime())) {
     return { ok: false, error: "unparseable timestamp" };
@@ -63,8 +112,15 @@ export function parsePing(params: URLSearchParams): PingResult {
 
   // Same empty-string trap for the optional fields: speed= must stay null,
   // not become 0 m/s (which would look like a real standstill reading).
+  // speed_ms (from JSON payloads) is already m/s; OsmAnd speed is knots.
+  const rawSpeedMs = finiteOrNull(params.get("speed_ms"));
   const rawSpeed = finiteOrNull(params.get("speed"));
-  const speedMs = rawSpeed !== null ? Math.round(rawSpeed * KNOTS_TO_MS * 100) / 100 : null;
+  const speedMs =
+    rawSpeedMs !== null
+      ? Math.round(rawSpeedMs * 100) / 100
+      : rawSpeed !== null
+        ? Math.round(rawSpeed * KNOTS_TO_MS * 100) / 100
+        : null;
 
   const rawBatt = finiteOrNull(params.get("batt"));
   let batteryLevel: number | null = null;

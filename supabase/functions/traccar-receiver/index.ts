@@ -44,6 +44,16 @@ Deno.serve(async (req: Request) => {
   const result = parsePing(params);
   if (!result.ok) {
     // 400 = permanently malformed; Traccar re-sending it would never succeed.
+    // Log what actually arrived (token stripped) — without this, a client
+    // that formats pings unexpectedly is undiagnosable from the dashboard
+    // (exactly what happened on first deployment, 2026-07-05).
+    const logged = new URLSearchParams(params);
+    logged.delete("token");
+    console.error(
+      `malformed ping: ${result.error} | method=${req.method}`,
+      `| content-type=${req.headers.get("content-type") ?? "none"}`,
+      `| params=${logged.toString() || "(empty)"}`,
+    );
     return new Response(result.error, { status: 400 });
   }
   const ping = result.ping;

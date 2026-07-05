@@ -25,25 +25,48 @@ const supabase = createClient(
 Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
 
-  // Traccar Client sends params in the query string; some builds POST a form
-  // body instead. Merge both, query string winning.
+  // Traccar Client sends params in the query string, or POSTs them as a
+  // urlencoded body — field-observed with content-types that aren't
+  // application/x-www-form-urlencoded (first deployment, 2026-07-05, the
+  // token never arrived because the body was skipped on content-type).
+  // So: parse any non-JSON POST body as urlencoded, then merge the query
+  // string over it.
   const params = new URLSearchParams();
   if (req.method === "POST") {
-    const contentType = req.headers.get("content-type") ?? "";
-    if (contentType.includes("application/x-www-form-urlencoded")) {
-      for (const [k, v] of new URLSearchParams(await req.text())) params.set(k, v);
+    const raw = (await req.text()).trim();
+    if (raw && !raw.startsWith("{")) {
+      for (const [k, v] of new URLSearchParams(raw)) params.set(k, v);
     }
   }
   for (const [k, v] of url.searchParams) params.set(k, v);
 
   const expectedToken = Deno.env.get("TRACCAR_SHARED_TOKEN");
   if (!expectedToken || params.get("token") !== expectedToken) {
+    // Log the shape of the reject, never the values — enough to tell a
+    // missing token from a wrong one from an unparsed body.
+    const names = [...params.keys()].join(",") || "(none)";
+    console.error(
+      `auth reject: token ${params.has("token") ? "mismatch" : "absent"}`,
+      `| method=${req.method}`,
+      `| content-type=${req.headers.get("content-type") ?? "none"}`,
+      `| param names=${names}`,
+    );
     return new Response("forbidden", { status: 403 });
   }
 
   const result = parsePing(params);
   if (!result.ok) {
     // 400 = permanently malformed; Traccar re-sending it would never succeed.
+    // Log what actually arrived (token stripped) — without this, a client
+    // that formats pings unexpectedly is undiagnosable from the dashboard
+    // (exactly what happened on first deployment, 2026-07-05).
+    const logged = new URLSearchParams(params);
+    logged.delete("token");
+    console.error(
+      `malformed ping: ${result.error} | method=${req.method}`,
+      `| content-type=${req.headers.get("content-type") ?? "none"}`,
+      `| params=${logged.toString() || "(empty)"}`,
+    );
     return new Response(result.error, { status: 400 });
   }
   const ping = result.ping;

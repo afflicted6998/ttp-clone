@@ -65,37 +65,42 @@ export function MediaCapture({ visitId }: { visitId: string }) {
   }
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = ""; // allow re-capturing immediately
-    if (!file) return;
-    const key = nextKey.current++;
-    const type = mediaTypeFor(file.type);
-    const label = `${file.type || "file"} · ${Math.round(file.size / 1024)} KB`;
-    if (!type) {
-      setUploads((u) => [
-        ...u,
-        { key, file, label, status: "failed", error: `unsupported file type: ${file.type}`,
-          type: "photo", path: "", mediaId: "" },
-      ]);
-      return;
-    }
-    const entry: Upload = {
-      key,
-      file,
-      label,
-      status: "uploading",
-      type,
-      path: storagePathFor(visitId, file.type, Date.now()),
-      mediaId: crypto.randomUUID(),
-    };
-    setUploads((u) => [...u, entry]);
-    upload(entry);
+    // Gallery multi-select can hand over several files in the same
+    // millisecond — the +index keeps their storage paths distinct.
+    files.forEach((file, i) => {
+      const key = nextKey.current++;
+      const type = mediaTypeFor(file.type);
+      const label = `${file.name || file.type || "file"} · ${Math.round(file.size / 1024)} KB`;
+      if (!type) {
+        setUploads((u) => [
+          ...u,
+          { key, file, label, status: "failed", error: `unsupported file type: ${file.type}`,
+            type: "photo", path: "", mediaId: "" },
+        ]);
+        return;
+      }
+      const entry: Upload = {
+        key,
+        file,
+        label,
+        status: "uploading",
+        type,
+        path: storagePathFor(visitId, file.type, Date.now() + i),
+        mediaId: crypto.randomUUID(),
+      };
+      setUploads((u) => [...u, entry]);
+      upload(entry);
+    });
   }
 
   return (
     <div>
       <h3>Media</h3>
-      {/* capture= opens the camera directly on Android Chrome */}
+      {/* capture= asks Android for the camera directly; some devices route it
+          to the default photos app instead — the gallery picker below is the
+          reliable fallback either way. */}
       <label>
         Take photo
         <input type="file" accept="image/*" capture="environment" onChange={onPick} />
@@ -103,6 +108,12 @@ export function MediaCapture({ visitId }: { visitId: string }) {
       <label>
         Record video
         <input type="file" accept="video/*" capture="environment" onChange={onPick} />
+      </label>
+      {/* No capture attribute -> opens the photo picker: existing shots,
+          AI-made images, anything already on the phone. Multi-select. */}
+      <label>
+        Choose from gallery
+        <input type="file" accept="image/*,video/*" multiple onChange={onPick} />
       </label>
 
       {uploads.filter((u) => u.status !== "done").map((u) => (

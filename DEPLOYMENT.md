@@ -44,7 +44,7 @@ npx supabase db push                        # applies all 5 migrations in order
 
 **If YES (tables already exist):** running `db push` would fail trying to
 re-create them. Tell Claude Code — the fix is marking migration
-`20260704120000` as already applied (`supabase migration repair`), then
+`20260704000000` as already applied (`supabase migration repair`), then
 `db push` applies only the newer four. Two minutes, but easy to fumble alone.
 
 **✓ You know it worked when:** Dashboard → Table Editor shows five tables

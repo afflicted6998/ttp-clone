@@ -15,7 +15,7 @@
 //                          Pixel; pings from any other id are rejected.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { parsePing } from "./ping.ts";
+import { parsePing, jsonBodyToParams } from "./ping.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -25,20 +25,27 @@ const supabase = createClient(
 Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
 
-  // Traccar Client sends params in the query string, or POSTs them as a
-  // urlencoded body — field-observed with content-types that aren't
-  // application/x-www-form-urlencoded (first deployment, 2026-07-05, the
-  // token never arrived because the body was skipped on content-type).
-  // So: parse any non-JSON POST body as urlencoded, then merge the query
-  // string over it.
+  // Field-observed (2026-07-05): the tracking client POSTs a JSON body with
+  // the token only in the URL query. Accept all three transports —
+  // query-string OsmAnd, urlencoded body, JSON body — query string winning.
   const params = new URLSearchParams();
+  let rawBody = "";
+  let batchCount = 0;
   if (req.method === "POST") {
-    const raw = (await req.text()).trim();
-    if (raw && !raw.startsWith("{")) {
-      for (const [k, v] of new URLSearchParams(raw)) params.set(k, v);
-    }
+    rawBody = (await req.text()).trim();
   }
   for (const [k, v] of url.searchParams) params.set(k, v);
+  if (rawBody.startsWith("{")) {
+    try {
+      batchCount = jsonBodyToParams(JSON.parse(rawBody), params);
+    } catch {
+      // fall through; the diagnostic capture below records the body
+    }
+  } else if (rawBody) {
+    for (const [k, v] of new URLSearchParams(rawBody)) {
+      if (params.get(k) === null) params.set(k, v);
+    }
+  }
 
   const expectedToken = Deno.env.get("TRACCAR_SHARED_TOKEN");
   if (!expectedToken || params.get("token") !== expectedToken) {
@@ -57,19 +64,31 @@ Deno.serve(async (req: Request) => {
   const result = parsePing(params);
   if (!result.ok) {
     // 400 = permanently malformed; Traccar re-sending it would never succeed.
-    // Log what actually arrived (token stripped) — without this, a client
-    // that formats pings unexpectedly is undiagnosable from the dashboard
-    // (exactly what happened on first deployment, 2026-07-05).
+    // Console logs proved hard to retrieve during the 2026-07-05 field
+    // debugging, so rejects are ALSO captured as diagnostic rows in
+    // orphan_pings (token-redacted) — queryable with plain SQL.
     const logged = new URLSearchParams(params);
     logged.delete("token");
-    console.error(
-      `malformed ping: ${result.error} | method=${req.method}`,
-      `| content-type=${req.headers.get("content-type") ?? "none"}`,
-      `| params=${logged.toString() || "(empty)"}`,
-    );
+    const redactedBody = rawBody.replaceAll(expectedToken, "[token]").slice(0, 800);
+    console.error(`malformed ping: ${result.error} | params=${logged.toString()}`);
+    await supabase.from("orphan_pings").insert({
+      device_id: "diagnostic-reject",
+      raw_params: JSON.stringify({
+        error: result.error,
+        method: req.method,
+        contentType: req.headers.get("content-type") ?? "none",
+        query: logged.toString(),
+        body: redactedBody,
+      }),
+    });
     return new Response(result.error, { status: 400 });
   }
   const ping = result.ping;
+  if (batchCount > 1) {
+    // JSON clients can batch several fixes per POST; only the first is stored
+    // so far. Surface it loudly rather than lose data silently.
+    console.error(`JSON batch of ${batchCount} fixes — only the first was stored`);
+  }
 
   // Required, not optional: a missing secret must fail loudly (500, so
   // Traccar buffers and retries), not silently accept every device

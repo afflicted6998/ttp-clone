@@ -13,20 +13,20 @@ Steve merges, like everything else.
 > (via PR) before ending.
 
 **Last Action:**
-- PR #20 merged: all three real findings from Gemini's PR #17–#19 review fixed
-  (nullable `walker_id`, staff-name RLS visibility, serving-walker schedule read).
-
-**⚠️ Known gap:** the live Supabase database is still Phase-1-only. Three merged
-migrations have NOT been applied to production yet: `phase2_visit_fields`,
-`schema_v2_core`, `v2_review_fixes`. Nothing v2 exists in the live DB until they run.
+- PR #20 merged (review fixes), and **all three v2 migrations applied to the live
+  Supabase project with Steve's authorization** (`phase2_visit_fields`,
+  `schema_v2_core`, `v2_review_fixes`). Verified live: 10 v2 tables, nullable
+  `walker_id`, owner seed row, all RLS fix policies, migration history matches
+  the repo. Security advisors re-run: nothing actionable. **The Foundation
+  sprint (S0) gate is passed** — schema v2 is reviewed and applied, and the
+  recurrence engine core is merged with its test suite green.
 
 **Next Actions:**
-- **Steve (Active)**: Authorize the production migration — tell Claude Code
-  "apply the pending migrations to live" in a session (it needs your explicit
-  approval to touch the production DB). *(Optional concurrent: Open-Meteo API
-  keys / n8n prep for Phase 2.)*
-- **Claude Code (Blocked on Steve)**: Apply the three migrations in order,
-  re-check Supabase security advisors, then begin **Phase 2 (report cards)**.
+- **Claude Code (Active)**: Begin **Phase 2 (report cards)** — pee/poop counters
+  in the walk screen, report email on checkout (≤ 60s bar), Open-Meteo weather,
+  n8n → Claude care-report text.
+- **Steve (Open items)**: Prepare Open-Meteo API key and n8n environment for
+  Phase 2; decide report-card aesthetics when asked (pending-decisions table).
 - **Gemini (Idle)**: Next review when the first Phase 2 PR opens.
 
 ## The north star, in one paragraph

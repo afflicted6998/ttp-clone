@@ -9,6 +9,7 @@ interface VisitRow {
   id: string;
   dog_label: string | null;
   terrain_tag: string | null;
+  visit_notes: string | null;
   check_in_time: string | null;
   check_out_time: string | null;
   duration_minutes: number | null;
@@ -18,6 +19,7 @@ interface VisitRow {
   weather_temp_c: number | null;
   weather_code: number | null;
   weather_wind_kmh: number | null;
+  report_sent_at: string | null;
   calendar_events: { title: string | null } | null;
 }
 
@@ -34,6 +36,23 @@ export function VisitDetail({
   const [points, setPoints] = useState<RoutePoint[]>([]);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState<string | null>(null);
+
+  async function sendReport() {
+    setSending(true);
+    setSendResult(null);
+    const { data, error: sendErr } = await supabase.functions.invoke("report-card", {
+      body: { visit_id: visitId },
+    });
+    setSending(false);
+    if (sendErr) setSendResult(`Send failed: ${sendErr.message}`);
+    else {
+      const ms = (data as { elapsed_ms?: number })?.elapsed_ms ?? 0;
+      setSendResult(`Report emailed in ${(ms / 1000).toFixed(1)}s`);
+      setVisit((v) => (v ? { ...v, report_sent_at: new Date().toISOString() } : v));
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -41,7 +60,7 @@ export function VisitDetail({
         supabase
           .from("visits")
           .select(
-            "id, dog_label, terrain_tag, check_in_time, check_out_time, duration_minutes, distance_meters, pee_dogs, poop_dogs, weather_temp_c, weather_code, weather_wind_kmh, calendar_events(title)",
+            "id, dog_label, terrain_tag, visit_notes, check_in_time, check_out_time, duration_minutes, distance_meters, pee_dogs, poop_dogs, weather_temp_c, weather_code, weather_wind_kmh, report_sent_at, calendar_events(title)",
           )
           .eq("id", visitId)
           .maybeSingle(),
@@ -98,6 +117,26 @@ export function VisitDetail({
               Number(visit.weather_wind_kmh ?? 0),
             )}
           </p>
+        )}
+        {visit.visit_notes && (
+          <p style={{ whiteSpace: "pre-wrap" }}>{visit.visit_notes}</p>
+        )}
+        {visit.check_out_time && (
+          <>
+            <button onClick={sendReport} disabled={sending}>
+              {sending
+                ? "Sending report…"
+                : visit.report_sent_at
+                  ? "Resend report card"
+                  : "Send report card"}
+            </button>
+            {visit.report_sent_at && (
+              <p className="muted">
+                Report sent {new Date(visit.report_sent_at).toLocaleString()}
+              </p>
+            )}
+            {sendResult && <p className="muted">{sendResult}</p>}
+          </>
         )}
       </div>
 

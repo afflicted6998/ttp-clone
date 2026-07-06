@@ -10,9 +10,10 @@ export function ActiveVisit({
   onCheckedOut,
 }: {
   visit: Visit;
-  onCheckedOut: () => void;
+  onCheckedOut: (reportMessage?: string) => void;
 }) {
   const [terrain, setTerrain] = useState("");
+  const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pingCount, setPingCount] = useState<number | null>(null);
@@ -72,6 +73,7 @@ export function ActiveVisit({
     setBusy(true);
     setError(null);
     const checkOutTime = new Date().toISOString(); // before the weather fetch, so the timestamp is honest
+    const notesTrimmed = notes.trim();
     // Weather enrichment from the walk's own last GPS fix (Open-Meteo,
     // keyless). Null on any failure — weather never blocks a checkout.
     const { data: lastPoint } = await supabase
@@ -90,6 +92,7 @@ export function ActiveVisit({
         status: "completed",
         check_out_time: checkOutTime,
         terrain_tag: terrain.trim() || null,
+        visit_notes: notesTrimmed || null,
         pee_dogs: statusRef.current.pee,
         poop_dogs: statusRef.current.poop,
         ...(weather && {
@@ -101,9 +104,22 @@ export function ActiveVisit({
         updated_at: new Date().toISOString(),
       })
       .eq("id", visit.id);
+    if (error) {
+      setBusy(false);
+      setError(error.message);
+      return;
+    }
+    // Fire the report card. Its failure never un-completes a checkout — the
+    // detail screen has a "Send report card" button for retries.
+    const { data: sent, error: sendErr } = await supabase.functions.invoke("report-card", {
+      body: { visit_id: visit.id },
+    });
     setBusy(false);
-    if (error) setError(error.message);
-    else onCheckedOut();
+    onCheckedOut(
+      sendErr
+        ? `Walk saved — report email failed (${sendErr.message}); resend it from the visit's detail screen`
+        : `Walk saved — report emailed in ${Math.round(((sent as { elapsed_ms?: number })?.elapsed_ms ?? 0) / 100) / 10}s`,
+    );
   }
 
   return (
@@ -157,6 +173,16 @@ export function ActiveVisit({
       </div>
 
       <MediaCapture visitId={visit.id} />
+
+      <label>
+        Note for the client's report
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={4}
+          placeholder="How the walk went — this is the message the client reads"
+        />
+      </label>
 
       <label>
         Terrain note

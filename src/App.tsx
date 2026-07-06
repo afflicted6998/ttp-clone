@@ -47,7 +47,7 @@ function Shell({ session }: { session: Session }) {
         </a>
       </p>
       {view === "admin" && isAdmin(role) ? (
-        <AdminHome onBack={() => setView("walks")} />
+        <AdminHome role={role} onBack={() => setView("walks")} />
       ) : (
         <Home walkerId={session.user.id} />
       )}

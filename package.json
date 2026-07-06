@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "tsx supabase/functions/traccar-receiver/ping.test.ts && tsx supabase/functions/ics-ingest/parse.test.ts && tsx src/mediaPath.test.ts && tsx src/format.test.ts && tsx src/formUtils.test.ts && tsx src/rollups.test.ts && tsx src/weather.test.ts && tsx src/dogLabel.test.ts && tsx supabase/functions/_shared/routePng.test.ts && tsx supabase/functions/_shared/reportEmail.test.ts && tsx supabase/functions/_shared/recurrence.test.ts"
+    "test": "tsx supabase/functions/traccar-receiver/ping.test.ts && tsx supabase/functions/ics-ingest/parse.test.ts && tsx src/mediaPath.test.ts && tsx src/format.test.ts && tsx src/formUtils.test.ts && tsx src/rollups.test.ts && tsx src/money.test.ts && tsx src/weather.test.ts && tsx src/dogLabel.test.ts && tsx supabase/functions/_shared/routePng.test.ts && tsx supabase/functions/_shared/reportEmail.test.ts && tsx supabase/functions/_shared/recurrence.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

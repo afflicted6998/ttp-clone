@@ -10,8 +10,8 @@ export interface Visit {
   dog_label: string | null;
   check_in_time: string | null;
   calendar_event_id: string | null;
-  pee_count: number;
-  poop_count: number;
+  pee_dogs: string[];
+  poop_dogs: string[];
 }
 
 export function Home({ walkerId }: { walkerId: string }) {
@@ -25,7 +25,7 @@ export function Home({ walkerId }: { walkerId: string }) {
     setError(null);
     const { data, error } = await supabase
       .from("visits")
-      .select("id, dog_label, check_in_time, calendar_event_id, pee_count, poop_count")
+      .select("id, dog_label, check_in_time, calendar_event_id, pee_dogs, poop_dogs")
       .eq("status", "active")
       .eq("walker_id", walkerId)
       .order("check_in_time", { ascending: false, nullsFirst: false })

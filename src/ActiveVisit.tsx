@@ -15,34 +15,45 @@ export function ActiveVisit({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pingCount, setPingCount] = useState<number | null>(null);
-  const [counts, setCounts] = useState({
-    pee: visit.pee_count,
-    poop: visit.poop_count,
+  const dogs = (visit.dog_label || "Unknown Dog")
+    .split(/\s+(?:and|&)\s+|,/)
+    .map(s => s.trim())
+    .filter(Boolean);
+  if (dogs.length === 0) dogs.push("Unknown Dog");
+
+  const [status, setStatus] = useState({
+    pee: visit.pee_dogs || [],
+    poop: visit.poop_dogs || [],
   });
-  // Ref mirrors counts so rapid taps never compute from a stale render.
-  const countsRef = useRef(counts);
+  // Ref mirrors status so rapid taps never compute from a stale render.
+  const statusRef = useRef(status);
 
   // Each tap persists immediately: the phone spends most of the walk locked
   // in a pocket, and a killed tab must not lose tap data. Out-of-order
   // responses could briefly persist a stale count; checkout's final write
   // settles it authoritatively.
-  function bump(kind: "pee" | "poop", delta: number) {
+  function toggle(kind: "pee" | "poop", dog: string) {
+    const currentList = statusRef.current[kind];
+    const nextList = currentList.includes(dog)
+      ? currentList.filter(d => d !== dog)
+      : [...currentList, dog];
+
     const next = {
-      ...countsRef.current,
-      [kind]: Math.max(0, countsRef.current[kind] + delta),
+      ...statusRef.current,
+      [kind]: nextList,
     };
-    countsRef.current = next;
-    setCounts(next);
+    statusRef.current = next;
+    setStatus(next);
     supabase
       .from("visits")
       .update({
-        pee_count: next.pee,
-        poop_count: next.poop,
+        pee_dogs: next.pee,
+        poop_dogs: next.poop,
         updated_at: new Date().toISOString(),
       })
       .eq("id", visit.id)
       .then(({ error }) => {
-        if (error) setError(`count save: ${error.message}`);
+        if (error) setError(`status save: ${error.message}`);
       });
   }
 
@@ -82,8 +93,8 @@ export function ActiveVisit({
         status: "completed",
         check_out_time: checkOutTime,
         terrain_tag: terrain.trim() || null,
-        pee_count: countsRef.current.pee,
-        poop_count: countsRef.current.poop,
+        pee_dogs: statusRef.current.pee,
+        poop_dogs: statusRef.current.poop,
         ...(weather && {
           weather_temp_c: weather.temp_c,
           weather_code: weather.code,
@@ -123,21 +134,29 @@ export function ActiveVisit({
         </p>
       )}
 
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <button style={{ flex: 1 }} onClick={() => bump("pee", 1)}>
-          💧 Pee — {counts.pee}
-        </button>
-        <button className="secondary" onClick={() => bump("pee", -1)} aria-label="undo pee">
-          −
-        </button>
-      </div>
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <button style={{ flex: 1 }} onClick={() => bump("poop", 1)}>
-          💩 Poop — {counts.poop}
-        </button>
-        <button className="secondary" onClick={() => bump("poop", -1)} aria-label="undo poop">
-          −
-        </button>
+      <div className="card" style={{ marginTop: 16 }}>
+        <h3 style={{ marginTop: 0, marginBottom: 8 }}>Pee & Poop</h3>
+        {dogs.map(dog => (
+          <div key={dog} style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
+            <span style={{ width: 80, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {dog}
+            </span>
+            <button
+              className={status.pee.includes(dog) ? "" : "secondary"}
+              style={{ flex: 1 }}
+              onClick={() => toggle("pee", dog)}
+            >
+              💧 Pee
+            </button>
+            <button
+              className={status.poop.includes(dog) ? "" : "secondary"}
+              style={{ flex: 1 }}
+              onClick={() => toggle("poop", dog)}
+            >
+              💩 Poop
+            </button>
+          </div>
+        ))}
       </div>
 
       <MediaCapture visitId={visit.id} />

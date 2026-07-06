@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "./supabase";
 import { MediaCapture } from "./MediaCapture";
+import { fetchWalkWeather } from "./weather";
 import type { Visit } from "./Home";
 
 export function ActiveVisit({
@@ -62,16 +63,33 @@ export function ActiveVisit({
   async function checkOut() {
     setBusy(true);
     setError(null);
-    // Timer/distance are DERIVED fields, computed at checkout in a later PR —
-    // here we only record the raw facts: times, status, terrain note.
+    const checkOutTime = new Date().toISOString(); // before the weather fetch, so the timestamp is honest
+    // Weather enrichment from the walk's own last GPS fix (Open-Meteo,
+    // keyless). Null on any failure — weather never blocks a checkout.
+    const { data: lastPoint } = await supabase
+      .from("location_logs")
+      .select("latitude, longitude")
+      .eq("visit_id", visit.id)
+      .order("recorded_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const weather = lastPoint
+      ? await fetchWalkWeather(Number(lastPoint.latitude), Number(lastPoint.longitude))
+      : null;
     const { error } = await supabase
       .from("visits")
       .update({
         status: "completed",
-        check_out_time: new Date().toISOString(),
+        check_out_time: checkOutTime,
         terrain_tag: terrain.trim() || null,
         pee_count: countsRef.current.pee,
         poop_count: countsRef.current.poop,
+        ...(weather && {
+          weather_temp_c: weather.temp_c,
+          weather_code: weather.code,
+          weather_wind_kmh: weather.wind_kmh,
+          weather_precip_mm: weather.precip_mm,
+        }),
         updated_at: new Date().toISOString(),
       })
       .eq("id", visit.id);

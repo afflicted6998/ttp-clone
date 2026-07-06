@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "./supabase";
 import { MediaCapture } from "./MediaCapture";
 import { fetchWalkWeather } from "./weather";
+import { splitDogLabel } from "./dogLabel";
 import type { Visit } from "./Home";
 
 export function ActiveVisit({
@@ -15,11 +16,7 @@ export function ActiveVisit({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pingCount, setPingCount] = useState<number | null>(null);
-  const dogs = (visit.dog_label || "Unknown Dog")
-    .split(/\s+(?:and|&)\s+|,/)
-    .map(s => s.trim())
-    .filter(Boolean);
-  if (dogs.length === 0) dogs.push("Unknown Dog");
+  const dogs = splitDogLabel(visit.dog_label);
 
   const [status, setStatus] = useState({
     pee: visit.pee_dogs || [],

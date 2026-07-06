@@ -126,8 +126,14 @@ via n8n is possible later but needs metered API keys — manual first.
   not UTC instants — so a 10 AM walk stays 10 AM across DST changes.
 - Multi-dog visits via a **visit_dogs junction** (Samson + Reba on one walk is the
   norm, not the exception); `dog_label` kept as legacy fallback.
-- Pee/poop captured as **counts, not booleans** (better data for Phase 8 analytics;
-  UI can still render as toggles).
+- Pee/poop: ~~counts, not booleans~~ **REVERSED by Steve 2026-07-06** — captured
+  as **per-pet yes/no** (TTP report-card parity; counts aren't needed). Bridge
+  representation until the visit_dogs junction is wired into the PWA (Phase 3):
+  `visits.pee_dogs` / `poop_dogs` text arrays of dog names parsed from
+  `dog_label`. When check-in creates real visit_dogs rows, the arrays migrate to
+  `peed`/`pooped` booleans on the junction and the bridge is retired. The unused
+  `pee_count`/`poop_count` columns drop in a cleanup migration after the array
+  UI deploys.
 - Walkers see **only clients they're assigned to** (least privilege); admins see all.
 - Messaging tables **designed in v2, migrated at Phase 7** — no dead tables in prod.
 - The Phase-2 report email's **60-second delivery bar** (an optimizer-invented

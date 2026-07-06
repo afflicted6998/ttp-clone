@@ -13,21 +13,24 @@ Steve merges, like everything else.
 > (via PR) before ending.
 
 **Last Action:**
-- PR #20 merged (review fixes), and **all three v2 migrations applied to the live
-  Supabase project with Steve's authorization** (`phase2_visit_fields`,
-  `schema_v2_core`, `v2_review_fixes`). Verified live: 10 v2 tables, nullable
-  `walker_id`, owner seed row, all RLS fix policies, migration history matches
-  the repo. Security advisors re-run: nothing actionable. **The Foundation
-  sprint (S0) gate is passed** — schema v2 is reviewed and applied, and the
-  recurrence engine core is merged with its test suite green.
+- Phase 2 build started (S0 gate passed earlier tonight; live DB fully migrated).
+  **PR #23** (pee/poop tap counters) and **PR #26** (Open-Meteo weather at
+  checkout, includes a migration) are open for review. Decision issues **#24**
+  (who sends the report email — options laid out, recommendation: n8n
+  end-to-end) and **#25** (route map in the email — recommendation:
+  self-rendered image + PWA link) are filed.
 
 **Next Actions:**
-- **Claude Code (Active)**: Begin **Phase 2 (report cards)** — pee/poop counters
-  in the walk screen, report email on checkout (≤ 60s bar), Open-Meteo weather,
-  n8n → Claude care-report text.
-- **Steve (Open items)**: Prepare Open-Meteo API key and n8n environment for
-  Phase 2; decide report-card aesthetics when asked (pending-decisions table).
-- **Gemini (Idle)**: Next review when the first Phase 2 PR opens.
+- **Steve (Active)**: ① Decide issue #24 and provide the matching secrets
+  (n8n webhook URL + shared secret at minimum) — **this is the blocker for the
+  report-card email and the Phase 2 gate.** ② Review/merge PRs #23 and #26
+  after Gemini's pass (merge #23 before #26). ③ Authorize applying the weather
+  migration to live after #26 merges. ④ Weigh in on #25 only if you disagree
+  with the recommendation.
+- **Gemini (Active)**: Review PRs #23 and #26.
+- **Claude Code (Blocked on #24)**: Build the report-card send pipeline
+  (checkout → stats + media + map + weather + n8n → Claude text → email,
+  ≤ 60s gate) once #24 is decided; rebase #26 if it conflicts after #23 merges.
 
 ## The north star, in one paragraph
 

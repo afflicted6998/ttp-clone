@@ -13,24 +13,13 @@ Steve merges, like everything else.
 > (via PR) before ending.
 
 **Last Action:**
-- Phase 2 build started (S0 gate passed earlier tonight; live DB fully migrated).
-  **PR #23** (pee/poop tap counters) and **PR #26** (Open-Meteo weather at
-  checkout, includes a migration) are open for review. Decision issues **#24**
-  (who sends the report email — options laid out, recommendation: n8n
-  end-to-end) and **#25** (route map in the email — recommendation:
-  self-rendered image + PWA link) are filed.
+- Gemini reviewed and merged **PR #23** (pee/poop tap counters), **PR #26** (weather at checkout), and **PR #27** (status block).
+- Steve decided on issue **#24** (Supabase Edge Function sending directly via Resend/SendGrid) and **#25** (Self-rendered image + PWA link).
 
 **Next Actions:**
-- **Steve (Active)**: ① Decide issue #24 and provide the matching secrets
-  (n8n webhook URL + shared secret at minimum) — **this is the blocker for the
-  report-card email and the Phase 2 gate.** ② Review/merge PRs #23 and #26
-  after Gemini's pass (merge #23 before #26). ③ Authorize applying the weather
-  migration to live after #26 merges. ④ Weigh in on #25 only if you disagree
-  with the recommendation.
-- **Gemini (Active)**: Review PRs #23 and #26.
-- **Claude Code (Blocked on #24)**: Build the report-card send pipeline
-  (checkout → stats + media + map + weather + n8n → Claude text → email,
-  ≤ 60s gate) once #24 is decided; rebase #26 if it conflicts after #23 merges.
+- **Steve (Active)**: Provide the Resend/SendGrid API keys to Claude Code so it can build the edge function. Also authorize applying the weather migration (`20260706010000_visit_weather.sql`) to live.
+- **Claude Code (Blocked on Steve)**: Wait for Steve to provide the email API keys and authorize the migration. Once provided, build the report-card send pipeline (checkout → stats + media + map + weather → Claude text → email, ≤ 60s gate).
+- **Gemini (Idle)**: Next review when the pipeline PR opens.
 
 ## The north star, in one paragraph
 

@@ -77,7 +77,7 @@ Deno.serve(async (req: Request) => {
   if (!visit) return json(404, { error: "visit not found (or not yours)" });
 
   // Gather with the service role: GPS trail + media, signing storage URLs.
-  const [logsRes, mediaRes] = await Promise.all([
+  const [logsRes, mediaRes, junctionRes] = await Promise.all([
     service
       .from("location_logs")
       .select("latitude, longitude")
@@ -88,9 +88,21 @@ Deno.serve(async (req: Request) => {
       .select("type, storage_path, captured_at")
       .eq("visit_id", visitId)
       .order("captured_at"),
+    service
+      .from("visit_dogs")
+      .select("peed, pooped, dogs(name)")
+      .eq("visit_id", visitId),
   ]);
   if (logsRes.error) return json(500, { error: `location_logs: ${logsRes.error.message}` });
   if (mediaRes.error) return json(500, { error: `media: ${mediaRes.error.message}` });
+
+  // Registered dogs (visit_dogs junction) are authoritative when present;
+  // the dog_label + name-array bridge covers everything older or ad-hoc.
+  const junction = (junctionRes.data ?? []).map((r) => ({
+    name: (r.dogs as unknown as { name: string } | null)?.name ?? "?",
+    peed: Boolean(r.peed),
+    pooped: Boolean(r.pooped),
+  }));
 
   const points = (logsRes.data ?? []).map((p) => ({
     latitude: Number(p.latitude),
@@ -115,9 +127,15 @@ Deno.serve(async (req: Request) => {
   const mapPng = points.length > 0 ? await renderRoutePng(points) : null;
 
   const data: ReportData = {
-    dogs: splitDogLabel(visit.dog_label),
-    peeDogs: visit.pee_dogs ?? [],
-    poopDogs: visit.poop_dogs ?? [],
+    dogs: junction.length > 0 ? junction.map((j) => j.name) : splitDogLabel(visit.dog_label),
+    peeDogs:
+      junction.length > 0
+        ? junction.filter((j) => j.peed).map((j) => j.name)
+        : visit.pee_dogs ?? [],
+    poopDogs:
+      junction.length > 0
+        ? junction.filter((j) => j.pooped).map((j) => j.name)
+        : visit.poop_dogs ?? [],
     visitNotes: visit.visit_notes,
     terrain: visit.terrain_tag,
     checkInIso: visit.check_in_time,

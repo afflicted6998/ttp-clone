@@ -5,16 +5,29 @@ north-star-v2 conflicts session. Supersedes the phasing in PROJECT_CONTEXT.md an
 `FABLE_KICKOFF_PROMPT.md` where they differ. Changes to this file go through PRs
 Steve merges, like everything else.
 
-## Current Status (2026-07-05)
+## Current Status (2026-07-05, late evening)
 
-**Last Action:** 
-- Gemini reviewed PRs #17, #18, and #19 and identified critical data-integrity and RLS bugs.
-- Built the local `ttp-tracker` dashboard to monitor these documents.
+> This section is the project's status page. Read it on GitHub to know where
+> things stand — it supersedes the local `ttp-tracker` dashboard, which is now
+> optional. Every session that changes project state should refresh this block
+> (via PR) before ending.
 
-**Next Actions:** 
-- **Claude Code (Active)**: Fix the `walker_id` constraint and `staff` RLS visibility rules (see PR Review Findings). This is a hard blocker. Once fixed, begin **Phase 2 (Report cards)**.
-- **Gemini (Blocked)**: *Waiting on Claude Code.* Will review the bug-fix PR once submitted.
-- **Steve (Blocked)**: *Waiting on Claude Code.* Will merge the bug-fix PR once Gemini approves. *(Optional concurrent task: prepare Open-Meteo API keys or n8n environment for Phase 2).*
+**Last Action:**
+- PR #20 merged: all three real findings from Gemini's PR #17–#19 review fixed
+  (nullable `walker_id`, staff-name RLS visibility, serving-walker schedule read).
+
+**⚠️ Known gap:** the live Supabase database is still Phase-1-only. Three merged
+migrations have NOT been applied to production yet: `phase2_visit_fields`,
+`schema_v2_core`, `v2_review_fixes`. Nothing v2 exists in the live DB until they run.
+
+**Next Actions:**
+- **Steve (Active)**: Authorize the production migration — tell Claude Code
+  "apply the pending migrations to live" in a session (it needs your explicit
+  approval to touch the production DB). *(Optional concurrent: Open-Meteo API
+  keys / n8n prep for Phase 2.)*
+- **Claude Code (Blocked on Steve)**: Apply the three migrations in order,
+  re-check Supabase security advisors, then begin **Phase 2 (report cards)**.
+- **Gemini (Idle)**: Next review when the first Phase 2 PR opens.
 
 ## The north star, in one paragraph
 

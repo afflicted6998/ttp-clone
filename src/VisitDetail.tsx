@@ -3,6 +3,7 @@ import { supabase } from "./supabase";
 import { RouteMap, type RoutePoint } from "./RouteMap";
 import { fetchMediaWithUrls, type MediaItem } from "./mediaList";
 import { formatDistance, formatDuration } from "./format";
+import { weatherSummary } from "./weather";
 
 interface VisitRow {
   id: string;
@@ -12,6 +13,9 @@ interface VisitRow {
   check_out_time: string | null;
   duration_minutes: number | null;
   distance_meters: number | null;
+  weather_temp_c: number | null;
+  weather_code: number | null;
+  weather_wind_kmh: number | null;
   calendar_events: { title: string | null } | null;
 }
 
@@ -35,7 +39,7 @@ export function VisitDetail({
         supabase
           .from("visits")
           .select(
-            "id, dog_label, terrain_tag, check_in_time, check_out_time, duration_minutes, distance_meters, calendar_events(title)",
+            "id, dog_label, terrain_tag, check_in_time, check_out_time, duration_minutes, distance_meters, weather_temp_c, weather_code, weather_wind_kmh, calendar_events(title)",
           )
           .eq("id", visitId)
           .maybeSingle(),
@@ -79,6 +83,16 @@ export function VisitDetail({
             ` → ${new Date(visit.check_out_time).toLocaleTimeString()}`}
         </p>
         {visit.terrain_tag && <p>Terrain: {visit.terrain_tag}</p>}
+        {visit.weather_temp_c !== null && visit.weather_code !== null && (
+          <p>
+            Weather:{" "}
+            {weatherSummary(
+              Number(visit.weather_temp_c),
+              visit.weather_code,
+              Number(visit.weather_wind_kmh ?? 0),
+            )}
+          </p>
+        )}
       </div>
 
       <div className="card">

@@ -5,6 +5,17 @@ north-star-v2 conflicts session. Supersedes the phasing in PROJECT_CONTEXT.md an
 `FABLE_KICKOFF_PROMPT.md` where they differ. Changes to this file go through PRs
 Steve merges, like everything else.
 
+## Current Status (2026-07-05)
+
+**Last Action:** 
+- Gemini reviewed PRs #17, #18, and #19 and identified critical data-integrity and RLS bugs.
+- Built the local `ttp-tracker` dashboard to monitor these documents.
+
+**Next Actions:** 
+- **Claude Code (Active)**: Fix the `walker_id` constraint and `staff` RLS visibility rules (see PR Review Findings). This is a hard blocker. Once fixed, begin **Phase 2 (Report cards)**.
+- **Gemini (Blocked)**: *Waiting on Claude Code.* Will review the bug-fix PR once submitted.
+- **Steve (Blocked)**: *Waiting on Claude Code.* Will merge the bug-fix PR once Gemini approves. *(Optional concurrent task: prepare Open-Meteo API keys or n8n environment for Phase 2).*
+
 ## The north star, in one paragraph
 
 A full replacement for Time To Pet: Steve cancels the TTP subscription, owns every
@@ -116,3 +127,19 @@ via n8n is possible later but needs metered API keys — manual first.
 - Messaging tables **designed in v2, migrated at Phase 7** — no dead tables in prod.
 - The Phase-2 report email's **60-second delivery bar** (an optimizer-invented
   number Steve accepted) is the acceptance test.
+
+## Pending Strategic Decisions (For Steve)
+
+*(Instruction for Claude Code: If you encounter a strategic decision, UI/UX choice, business logic question, or third-party account requirement that Steve needs to resolve in a later phase, do not make assumptions. Document it in this table so Steve can review and decide when the time comes.)*
+
+| Phase | Decision / Requirement | Context | Status |
+|---|---|---|---|
+| 2 | **Report Card Aesthetics** | What exactly should the report email look like? Should there be a web-hosted version or just the email body? | Deferred |
+| 3 | **Brand & UI/UX Design** | Core branding (colors, logo, typography) and layout structure (sidebar vs bottom nav) for the PWA. | Deferred |
+| 4 | **QuickBooks Developer Setup** | Need to create an Intuit Developer account and generate production OAuth2 credentials for the n8n sync. | Deferred |
+| 5 | **Booking: Build vs. Cal.com** | Whether to build a custom client booking UI in the PWA or self-host Cal.com for client schedule requests. | Deferred |
+| 6 | **Client Onboarding Flow** | Will new clients use a simple in-app form, or will you continue manual-assisted onboarding? E-signatures (for contracts) stay external for now, but need a workflow. | Deferred |
+| 7 | **Google Play Developer Account** | Need to create the Google Play Console account ($25 fee) to distribute the Capacitor wrapper in the closed-track. | Deferred |
+| 7 | **Push Notification Provider** | Need to decide on the infrastructure for push notifications (e.g., Firebase Cloud Messaging) when wrapping the app. | Deferred |
+| 7 | **Staff Contact Privacy** | RLS policy exposes full staff rows (email/phone) to clients they serve. If team size increases, restrict this to public profiles. | Deferred (Return later when team grows) |
+

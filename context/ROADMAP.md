@@ -5,21 +5,37 @@ north-star-v2 conflicts session. Supersedes the phasing in PROJECT_CONTEXT.md an
 `FABLE_KICKOFF_PROMPT.md` where they differ. Changes to this file go through PRs
 Steve merges, like everything else.
 
-## Current Status (2026-07-05, late evening)
+## Current Status (2026-07-06, overnight window closed)
 
 > This section is the project's status page. Read it on GitHub to know where
 > things stand — it supersedes the local `ttp-tracker` dashboard, which is now
 > optional. Every session that changes project state should refresh this block
 > (via PR) before ending.
 
-**Last Action:**
-- Gemini reviewed and merged **PR #23** (pee/poop tap counters), **PR #26** (weather at checkout), and **PR #27** (status block).
-- Steve decided on issue **#24** (Supabase Edge Function sending directly via Resend/SendGrid) and **#25** (Self-rendered image + PWA link).
+**Last Action (Claude Code, during Steve's authorized 23:29→03:20 window):**
+- **PR #28 merged** (per-pet pee/poop, Gemini build + review fixes) and **PR #29
+  merged**: the full report-card pipeline — `report-card` edge function DEPLOYED
+  (live, v1, boot-tested), self-rendered route PNG, per-dog template modeled on
+  the real TTP export, walker's "note for the client's report" at checkout,
+  auto-send on checkout + Send/Resend button on visit detail, dry-run mode.
+- **Live DB migrations applied**: `visit_weather` (fixed prod checkout, which
+  merged PR #26 had silently broken), `pee_poop_arrays`, `visit_notes`.
+- Opened for review, **deliberately unmerged**: **PR #31** (Phase 3 scaffold:
+  role-gated admin + Clients/Dogs CRM, per Steve's "start Phase 3 at PR stage"),
+  **PR #32** (drop retired counter columns — apply only after confirming the
+  deployed PWA shows per-dog toggles). Issue **#30** filed (anon-RLS quirk,
+  no action needed). Temporary merge authorization EXPIRED at 03:20.
 
 **Next Actions:**
-- **Steve (Active)**: Provide the Resend/SendGrid API keys to Claude Code so it can build the edge function. Also authorize applying the weather migration (`20260706010000_visit_weather.sql`) to live.
-- **Claude Code (Blocked on Steve)**: Wait for Steve to provide the email API keys and authorize the migration. Once provided, build the report-card send pipeline (checkout → stats + media + map + weather → Claude text → email, ≤ 60s gate).
-- **Gemini (Idle)**: Next review when the pipeline PR opens.
+- **Steve (Active)**: ① Add the two Resend secrets (`RESEND_API_KEY`,
+  `REPORT_TO_EMAIL` — dashboard → Edge Functions → Secrets), then ② open
+  today's "Sammy and Reba" visit in the app and tap **Send report card** —
+  if the email lands, that is the Phase 2 gate test on real walk data
+  (210 GPS points, 3 media files). ③ Have Gemini post-hoc review PRs
+  #28/#29 (merged) and #31/#32 (open).
+- **Gemini (Active)**: Post-hoc review of the overnight work, then PRs #31/#32.
+- **Claude Code (Ready)**: Fix anything Gemini's review finds; then remaining
+  Phase 3 (visit assignment, visit_dogs wiring at check-in, owner rollups).
 
 ## The north star, in one paragraph
 

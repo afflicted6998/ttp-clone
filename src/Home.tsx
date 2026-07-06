@@ -19,6 +19,7 @@ export function Home({ walkerId }: { walkerId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openVisitId, setOpenVisitId] = useState<string | null>(null);
+  const [banner, setBanner] = useState<string | null>(null);
 
   const loadActiveVisit = useCallback(async () => {
     setLoading(true);
@@ -49,8 +50,15 @@ export function Home({ walkerId }: { walkerId: string }) {
 
   return (
     <>
+      {banner && <p className="muted">{banner}</p>}
       {visit ? (
-        <ActiveVisit visit={visit} onCheckedOut={loadActiveVisit} />
+        <ActiveVisit
+          visit={visit}
+          onCheckedOut={(reportMessage) => {
+            setBanner(reportMessage ?? null);
+            loadActiveVisit();
+          }}
+        />
       ) : (
         <CheckIn walkerId={walkerId} onCheckedIn={loadActiveVisit} />
       )}

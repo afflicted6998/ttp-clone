@@ -12,6 +12,8 @@ interface VisitRow {
   check_out_time: string | null;
   duration_minutes: number | null;
   distance_meters: number | null;
+  pee_count: number;
+  poop_count: number;
   calendar_events: { title: string | null } | null;
 }
 
@@ -35,7 +37,7 @@ export function VisitDetail({
         supabase
           .from("visits")
           .select(
-            "id, dog_label, terrain_tag, check_in_time, check_out_time, duration_minutes, distance_meters, calendar_events(title)",
+            "id, dog_label, terrain_tag, check_in_time, check_out_time, duration_minutes, distance_meters, pee_count, poop_count, calendar_events(title)",
           )
           .eq("id", visitId)
           .maybeSingle(),
@@ -72,6 +74,9 @@ export function VisitDetail({
           <strong>{formatDuration(visit.duration_minutes)}</strong> ·{" "}
           <strong>{formatDistance(visit.distance_meters)}</strong> ·{" "}
           {points.length} GPS points
+        </p>
+        <p>
+          💧 ×{visit.pee_count} · 💩 ×{visit.poop_count}
         </p>
         <p className="muted">
           {visit.check_in_time && new Date(visit.check_in_time).toLocaleString()}

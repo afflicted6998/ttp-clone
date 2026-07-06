@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "./supabase";
 import { MediaCapture } from "./MediaCapture";
 import type { Visit } from "./Home";
@@ -14,6 +14,36 @@ export function ActiveVisit({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pingCount, setPingCount] = useState<number | null>(null);
+  const [counts, setCounts] = useState({
+    pee: visit.pee_count,
+    poop: visit.poop_count,
+  });
+  // Ref mirrors counts so rapid taps never compute from a stale render.
+  const countsRef = useRef(counts);
+
+  // Each tap persists immediately: the phone spends most of the walk locked
+  // in a pocket, and a killed tab must not lose tap data. Out-of-order
+  // responses could briefly persist a stale count; checkout's final write
+  // settles it authoritatively.
+  function bump(kind: "pee" | "poop", delta: number) {
+    const next = {
+      ...countsRef.current,
+      [kind]: Math.max(0, countsRef.current[kind] + delta),
+    };
+    countsRef.current = next;
+    setCounts(next);
+    supabase
+      .from("visits")
+      .update({
+        pee_count: next.pee,
+        poop_count: next.poop,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", visit.id)
+      .then(({ error }) => {
+        if (error) setError(`count save: ${error.message}`);
+      });
+  }
 
   // Field-test aid (QA core test step 4): live count of GPS points landing
   // for this visit, so a dead Traccar config is visible before the walk.
@@ -40,6 +70,8 @@ export function ActiveVisit({
         status: "completed",
         check_out_time: new Date().toISOString(),
         terrain_tag: terrain.trim() || null,
+        pee_count: countsRef.current.pee,
+        poop_count: countsRef.current.poop,
         updated_at: new Date().toISOString(),
       })
       .eq("id", visit.id);
@@ -72,6 +104,23 @@ export function ActiveVisit({
           on? correct server URL?).
         </p>
       )}
+
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <button style={{ flex: 1 }} onClick={() => bump("pee", 1)}>
+          💧 Pee — {counts.pee}
+        </button>
+        <button className="secondary" onClick={() => bump("pee", -1)} aria-label="undo pee">
+          −
+        </button>
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <button style={{ flex: 1 }} onClick={() => bump("poop", 1)}>
+          💩 Poop — {counts.poop}
+        </button>
+        <button className="secondary" onClick={() => bump("poop", -1)} aria-label="undo poop">
+          −
+        </button>
+      </div>
 
       <MediaCapture visitId={visit.id} />
 

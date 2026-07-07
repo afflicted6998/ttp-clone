@@ -5,12 +5,32 @@ north-star-v2 conflicts session. Supersedes the phasing in PROJECT_CONTEXT.md an
 `FABLE_KICKOFF_PROMPT.md` where they differ. Changes to this file go through PRs
 Steve merges, like everything else.
 
-## Current Status (2026-07-06, overnight window closed)
+## Current Status (2026-07-07, overnight Stripe build)
 
 > This section is the project's status page. Read it on GitHub to know where
 > things stand — it supersedes the local `ttp-tracker` dashboard, which is now
 > optional. Every session that changes project state should refresh this block
 > (via PR) before ending.
+
+**Last Action (Claude Code, Steve's authorized overnight 2026-07-07):**
+- **Issue #40 ruled and closed** (Stripe pre-payment gate): auto-charge-only,
+  admin override on decline, QuickBooks dropped from the payment flow, invoice
+  UI repurposed as charge ledger, service-catalog pricing. Ruling 4 amended.
+- **Live DB (Steve-authorized applies):** `drop_pee_poop_counts` (the retired
+  #32 counters) applied at last; `services_catalog` and `payments_schema`
+  applied (additive); migration history reconciled to the repo.
+- **A stacked PR train, deliberately UNMERGED** (branch protection + money code
+  belongs behind Gemini review). Merge in order: **#41** services catalog →
+  **#42** payments schema → **#43** Stripe edge functions (save-card /
+  charge-booking / webhook, signature-verified; 7 tests) → **#44** payment-gate
+  admin UI (save card / charge / override / ledger). Report-card real-send gate
+  test still pending Steve's tap (needs Resend secrets).
+- **Steve's morning to-dos:** review+merge #41→#44 in order (Gemini), deploy the
+  three Stripe functions (**webhook with `verify_jwt=false`**), add Stripe
+  test-mode secrets + webhook per `docs/STRIPE_SETUP.md`, then run a test-card
+  cycle. Not built (activation-gated): the check-in payment gate (Phase 5).
+
+<details><summary>Prior status (2026-07-06, overnight window closed)</summary>
 
 **Last Action (Claude Code, during Steve's authorized 23:29→03:20 window):**
 - **PR #28 merged** (per-pet pee/poop, Gemini build + review fixes) and **PR #29
@@ -48,6 +68,8 @@ Steve merges, like everything else.
   merges. Not built on purpose (need rulings/accounts): pricing model,
   Phase 5 activation, QB sync, client app invites, push/wrap, AI voice.
 
+</details>
+
 ## The north star, in one paragraph
 
 A full replacement for Time To Pet: Steve cancels the TTP subscription, owns every
@@ -76,11 +98,22 @@ Outside Feet and its customers — never a public app.**
    code, **activated** later; Google Calendar ingestion carries live scheduling until
    then. Build-vs-self-hosted-Cal.com for client-facing *booking* decided at
    activation with usage data.
-4. **Billing: own the data, never move the money.** Invoices and payment status live
-   in our Supabase; n8n (existing layer) syncs them to **QuickBooks via its OAuth2
-   node** (Intuit's MCP server is for agent/dev access, not the production sync).
-   Clients pay through the QuickBooks invoice's own payment link. **No card
-   processing is ever built or hosted here** — zero PCI scope.
+4. **Billing: own the data, never move the money.** ~~Invoices and payment status
+   live in our Supabase; n8n syncs them to QuickBooks; clients pay through the
+   QuickBooks invoice's payment link.~~ **AMENDED 2026-07-07 (issue #40): Stripe
+   pre-payment gate.** No walk starts unpaid — a client saves a card once at
+   onboarding (Stripe-hosted, off-session consent), and each booking auto-charges
+   that saved card. A declined card blocks the walk unless an admin overrides it
+   (recorded who/when/why, visibly flagged unpaid). **QuickBooks is dropped from
+   the payment flow** — Stripe's own reporting is the revenue record until the
+   future books-agent project (Steve's stated arc: QB eliminated entirely). The
+   old Phase-4 invoice screen is repurposed as the admin charge ledger + manual
+   corner-case billing. **The PCI stance is unchanged and is the whole point:
+   no card data ever touches our infrastructure** — Stripe hosts all card entry;
+   we store only opaque ids (`cus_/pm_/pi_`). Zero PCI scope. Charge mechanics
+   ruled: auto-charge-only (a card on file is required before booking; no
+   payment-link fallback). Pricing: a `services` catalog (TTP-style priced
+   offerings) the booking looks up. Setup checklist: `docs/STRIPE_SETUP.md`.
 5. **iOS deferred** until Android is complete end-to-end for all roles; company
    Android devices for hired walkers meanwhile.
 6. **Phase 1 pipeline is settled infrastructure.** Traccar ingest, media capture,
@@ -97,8 +130,8 @@ until its gate test passes on the real device(s).
 | S0 | **Foundation sprint** (now, discounted) | This plan · schema v2 (clients, dogs, staff, assignment, schedules, invoicing, RLS for 4 roles) · recurrence engine core, pure + tested | Migrations reviewed & applied; engine test suite green; nothing user-visible changes |
 | 2 | **Report cards** (scope locked pre-sprint) | Pee/poop counters in walk screen · report email on checkout (photos embedded, video links, stats, map) to test inbox · Open-Meteo weather · n8n → Claude care-report text | One real walk produces a client-ready report email ≤ 60s after checkout |
 | 3 | **Team app: Admin + Owner views** | Role-gated PWA views · client & dog CRM screens · visit assignment · visit oversight · basic owner rollups (walks/week, revenue-ready counts) | Steve runs a week of real operations (create client, assign visit, walker completes it) without touching Supabase dashboard |
-| 4 | **Billing** | Invoice generation from completed visits · n8n → QuickBooks sync · payment-status readback | A real visit becomes a QB invoice; payment status lands back in our DB without manual entry |
-| 5 | **Scheduling activation** | Recurrence engine wired to UI · schedule templates per client · generated visits replace calendar ingestion · booking build-vs-Cal.com decision | A recurring schedule generates two weeks of correct visits incl. a skip + a move; Google Calendar retired for scheduling |
+| 4 | **Billing (Stripe pre-payment gate)** | `services` catalog · Stripe card-on-file (save-card / charge-booking / webhook edge functions) · payments ledger · admin charge + override · ~~n8n → QuickBooks sync~~ (dropped, issue #40) | A booked visit auto-charges the client's saved card; a decline is blocked-or-overridden; every charge lands in the ledger. Card data never touches our infra. |
+| 5 | **Scheduling activation** | Recurrence engine wired to UI · schedule templates per client · generated visits replace calendar ingestion · **check-in gates on a scheduled + paid visit; ad-hoc check-in becomes admin/test-only** (issue #40, activation-gated here so it can't break the calendar test flow early) · booking build-vs-Cal.com decision | A recurring schedule generates two weeks of correct visits incl. a skip + a move; a client can't be checked in unpaid; Google Calendar retired for scheduling |
 | 6 | **Client app (PWA)** | Client login · their dogs, visit history, reports in-app, media, payment status · schedule-change requests | 2–3 real clients use it for two weeks; feedback logged as issues |
 | 7 | **Messaging + push + wrap** | In-app client↔business threads · push notifications · Capacitor wrap of both apps · closed-track distribution | Message + report-card push arrive on a real client's phone from the closed track |
 | 8 | **AI analysis layer** | Per-dog trends (routes, pace, pee/poop patterns), business rollups, anything TTP can't do | First insight Steve actually uses in operations |

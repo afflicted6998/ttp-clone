@@ -33,6 +33,17 @@ Stripe.js.
   can be added later for standing clients — issue #40's cost note — but is not
   in this first build.)
 
+## 2b. Deploy the three edge functions
+
+These are deployed after the PR train is reviewed and merged. Deploy flags
+matter:
+
+| function | `verify_jwt` | why |
+|---|---|---|
+| `stripe-save-card` | **on** (default) | admin-only; called from the app with the admin's login |
+| `stripe-charge-booking` | **on** (default) | admin-only; same |
+| `stripe-webhook` | **OFF** | Stripe has no login to present — it authenticates by signing the request, which the function verifies. Deploying this one with `verify_jwt` on would reject every real Stripe call. |
+
 ## 3. Create the webhook endpoint
 
 After the `stripe-webhook` function is deployed (its URL will be

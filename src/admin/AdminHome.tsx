@@ -5,9 +5,10 @@ import { VisitsAdmin } from "./VisitsAdmin";
 import { RollupsAdmin } from "./RollupsAdmin";
 import { InvoicesAdmin } from "./InvoicesAdmin";
 import { SchedulesAdmin } from "./SchedulesAdmin";
+import { ServicesAdmin } from "./ServicesAdmin";
 import type { StaffRole } from "../useRole";
 
-type Tab = "clients" | "dogs" | "visits" | "schedules" | "invoices" | "rollups";
+type Tab = "clients" | "dogs" | "visits" | "schedules" | "services" | "invoices" | "rollups";
 
 // Phase 3: the admin area, gated upstream by useRole/isAdmin. Rollups is
 // owner-only (ruling 1: Owner = Admin + business rollups). Tabs instead of
@@ -21,6 +22,7 @@ export function AdminHome({ role, onBack }: { role: StaffRole | null; onBack: ()
     { id: "clients", label: "Clients" },
     { id: "dogs", label: "Dogs" },
     { id: "schedules", label: "Schedules" },
+    { id: "services", label: "Services" },
     { id: "invoices", label: "Invoices" },
     ...(role === "owner" ? [{ id: "rollups" as Tab, label: "Rollups" }] : []),
   ];
@@ -41,6 +43,7 @@ export function AdminHome({ role, onBack }: { role: StaffRole | null; onBack: ()
       {tab === "dogs" && <DogsAdmin />}
       {tab === "visits" && <VisitsAdmin />}
       {tab === "schedules" && <SchedulesAdmin />}
+      {tab === "services" && <ServicesAdmin />}
       {tab === "invoices" && <InvoicesAdmin />}
       {tab === "rollups" && role === "owner" && <RollupsAdmin />}
     </div>

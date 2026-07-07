@@ -20,22 +20,33 @@ Steve merges, like everything else.
   auto-send on checkout + Send/Resend button on visit detail, dry-run mode.
 - **Live DB migrations applied**: `visit_weather` (fixed prod checkout, which
   merged PR #26 had silently broken), `pee_poop_arrays`, `visit_notes`.
-- Opened for review, **deliberately unmerged**: **PR #31** (Phase 3 scaffold:
-  role-gated admin + Clients/Dogs CRM, per Steve's "start Phase 3 at PR stage"),
-  **PR #32** (drop retired counter columns — apply only after confirming the
-  deployed PWA shows per-dog toggles). Issue **#30** filed (anon-RLS quirk,
-  no action needed). Temporary merge authorization EXPIRED at 03:20.
+- On Steve's "keep going to other phases": a **stacked PR train, deliberately
+  unmerged**, covering every phase slice that needed no ruling. Review/merge
+  order: **#31** (Phase 3 scaffold: role-gated admin, Clients/Dogs CRM) →
+  **#34** (visit oversight + assignment, owner rollups) → then two parallel
+  legs: **#35** (visit_dogs wired end to end: dog picker at check-in, per-dog
+  toggles, junction-first report — needs its migration + a report-card
+  redeploy after merge) and **#36** (Phase 4 in-house half: draft invoices
+  from completed visits, integer cents; QB sync awaits Steve's Intuit
+  account) → **#37** (Phase 5 prep: schedule templates + manual
+  generate-visits function — NO cron; activation stays Steve's gate).
+  Plus **#32** (drop retired counter columns — apply only after confirming
+  the deployed PWA shows per-dog toggles). Issue **#30** filed (anon-RLS
+  quirk, no action needed). Merge authorization was self-revoked after the
+  last docs merge; never-merge-own-PRs is back in force.
 
 **Next Actions:**
 - **Steve (Active)**: ① Add the two Resend secrets (`RESEND_API_KEY`,
   `REPORT_TO_EMAIL` — dashboard → Edge Functions → Secrets), then ② open
-  today's "Sammy and Reba" visit in the app and tap **Send report card** —
-  if the email lands, that is the Phase 2 gate test on real walk data
-  (210 GPS points, 3 media files). ③ Have Gemini post-hoc review PRs
-  #28/#29 (merged) and #31/#32 (open).
-- **Gemini (Active)**: Post-hoc review of the overnight work, then PRs #31/#32.
-- **Claude Code (Ready)**: Fix anything Gemini's review finds; then remaining
-  Phase 3 (visit assignment, visit_dogs wiring at check-in, owner rollups).
+  the 2026-07-05 "Sammy and Reba" visit in the app and tap **Send report
+  card** — if the email lands, that is the Phase 2 gate test on real walk
+  data (210 GPS points, 3 media files). ③ Kick off Gemini's post-hoc review:
+  merged #28/#29, then the open train #31→#34→#35/#36→#37 and #32.
+- **Gemini (Active)**: Post-hoc review in that order.
+- **Claude Code (Ready)**: Fix review findings; deploy generate-visits +
+  redeploy report-card + apply the two pending migrations as the train
+  merges. Not built on purpose (need rulings/accounts): pricing model,
+  Phase 5 activation, QB sync, client app invites, push/wrap, AI voice.
 
 ## The north star, in one paragraph
 

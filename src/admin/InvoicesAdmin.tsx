@@ -24,15 +24,30 @@ interface BillableVisit {
   duration_minutes: number | null;
 }
 
-// Phase 4, the in-house half: invoice data lives here; money movement stays
-// in QuickBooks (ruling 4). Prices are typed per line by the admin — a
-// pricing model (per-client rate? per-duration?) is a business decision on
-// the pending list, not something this screen invents. The n8n → QuickBooks
-// sync arrives once Steve's Intuit developer account exists; qb_invoice_id
-// stays NULL until then.
+interface PaymentRow {
+  id: string;
+  client_id: string;
+  amount_cents: number;
+  status: string;
+  created_at: string;
+  error_message: string | null;
+}
+
+// Billing admin. Two things live here now:
+//   1. The CARD-CHARGE LEDGER — the read-only record of Stripe charges (issue
+//      #40's pre-payment gate). This is the primary billing rail: bookings
+//      auto-charge the saved card; those attempts land in `payments` and are
+//      listed below.
+//   2. MANUAL / CORNER-CASE INVOICES — the original Phase 4 tool, repurposed
+//      for the cases the auto-charge gate doesn't cover (off-Stripe payment,
+//      an adjustment, a one-off bill). Prices are typed per line here on
+//      purpose; the catalog price drives the automatic path, not this one.
+// QuickBooks sync is dropped for the payment flow (issue #40 ruling): Stripe's
+// own reporting is the revenue record until the future books-agent project.
 export function InvoicesAdmin() {
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // "new invoice" flow state
@@ -43,17 +58,23 @@ export function InvoicesAdmin() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const [clientsRes, invoicesRes] = await Promise.all([
+    const [clientsRes, invoicesRes, paymentsRes] = await Promise.all([
       supabase.from("clients").select("id, full_name").eq("active", true).order("full_name"),
       supabase
         .from("invoices")
         .select("id, client_id, status, issue_date, total_cents, qb_invoice_id")
         .order("created_at", { ascending: false })
         .limit(30),
+      supabase
+        .from("payments")
+        .select("id, client_id, amount_cents, status, created_at, error_message")
+        .order("created_at", { ascending: false })
+        .limit(30),
     ]);
     if (clientsRes.data) setClients(clientsRes.data);
     if (invoicesRes.error) setError(invoicesRes.error.message);
     else setInvoices(invoicesRes.data ?? []);
+    if (paymentsRes.data) setPayments(paymentsRes.data);
   }, []);
 
   useEffect(() => {
@@ -147,9 +168,26 @@ export function InvoicesAdmin() {
 
   return (
     <div className="card">
-      <h3>Invoices</h3>
+      <h3>Billing</h3>
       {error && <p className="error">{error}</p>}
 
+      <h4>Card charges</h4>
+      {payments.length === 0 && (
+        <p className="muted">
+          No card charges yet. Bookings auto-charge the client's saved card once
+          Stripe is live; attempts show here.
+        </p>
+      )}
+      {payments.map((p) => (
+        <p key={p.id} style={{ margin: "2px 0" }}>
+          <strong>{clientName(p.client_id)}</strong> · {centsToDollars(p.amount_cents)} ·{" "}
+          <span className={p.status === "failed" ? "error" : undefined}>{p.status}</span>
+          <span className="muted"> {new Date(p.created_at).toLocaleDateString()}</span>
+          {p.error_message && <span className="muted"> · {p.error_message}</span>}
+        </p>
+      ))}
+
+      <h4 style={{ marginTop: 16 }}>Manual / corner-case invoice</h4>
       <label>
         New invoice for
         <select value={draftClient} onChange={(e) => setDraftClient(e.target.value)}>

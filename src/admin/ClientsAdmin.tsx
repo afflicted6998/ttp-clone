@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../supabase";
 import { blankToNull, nullToBlank } from "../formUtils";
+import { saveCard } from "../stripeClient";
 
 interface ClientRow {
   id: string;
@@ -11,6 +12,7 @@ interface ClientRow {
   home_access_notes: string | null;
   notes: string | null;
   active: boolean;
+  card_on_file: boolean;
 }
 
 const EMPTY: Omit<ClientRow, "id"> = {
@@ -21,6 +23,7 @@ const EMPTY: Omit<ClientRow, "id"> = {
   home_access_notes: null,
   notes: null,
   active: true,
+  card_on_file: false,
 };
 
 // Admin-only (enforced by RLS "clients admin all"; the UI is gated by
@@ -31,11 +34,12 @@ export function ClientsAdmin() {
   const [editing, setEditing] = useState<ClientRow | (Omit<ClientRow, "id"> & { id?: string }) | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cardBusyId, setCardBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from("clients")
-      .select("id, full_name, email, phone, address, home_access_notes, notes, active")
+      .select("id, full_name, email, phone, address, home_access_notes, notes, active, card_on_file")
       .order("full_name");
     if (error) setError(error.message);
     else setClients(data ?? []);
@@ -73,6 +77,21 @@ export function ClientsAdmin() {
       setEditing(null);
       load();
     }
+  }
+
+  // Opens Stripe's hosted card-save page. card_on_file flips true via the
+  // webhook once the client finishes, so we tell the admin to expect that
+  // rather than optimistically flipping it here.
+  async function startSaveCard(clientId: string) {
+    setCardBusyId(clientId);
+    setError(null);
+    const { data, error } = await saveCard(clientId);
+    setCardBusyId(null);
+    if (error || !data) {
+      setError(error ?? "could not start card save");
+      return;
+    }
+    window.open(data.url, "_blank", "noopener");
   }
 
   if (editing) {
@@ -148,6 +167,20 @@ export function ClientsAdmin() {
           </a>
           {!c.active && <span className="muted"> (inactive)</span>}
           {c.phone && <span className="muted"> · {c.phone}</span>}
+          {c.card_on_file ? (
+            <span className="muted"> · card on file ✓</span>
+          ) : (
+            <>
+              {" "}
+              <button
+                className="secondary"
+                disabled={cardBusyId === c.id}
+                onClick={() => startSaveCard(c.id)}
+              >
+                {cardBusyId === c.id ? "Opening…" : "Save card"}
+              </button>
+            </>
+          )}
         </p>
       ))}
       {clients.length === 0 && <p className="muted">No clients yet.</p>}
